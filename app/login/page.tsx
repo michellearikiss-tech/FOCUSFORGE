@@ -1,32 +1,24 @@
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { createClient } from "@/utils/supabase/server";
+"use client";
 
-export default async function LoginPage() {
+import { createClient } from "@/utils/supabase/client";
+
+const REDIRECT_TO =
+  "https://focusforge-gke3.vercel.app/auth/callback?next=/forge";
+
+export default function LoginPage() {
   async function signInWithGoogle() {
-    "use server";
+    const supabase = createClient();
 
-    const headerStore = await headers();
-    const origin = headerStore.get("origin") || "http://localhost:3000";
-
-    const supabase = await createClient();
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/auth/callback?next=/forge`,
+        redirectTo: REDIRECT_TO,
       },
     });
 
     if (error) {
-      redirect(`/login?error=${encodeURIComponent(error.message)}`);
+      alert(error.message);
     }
-
-    if (data.url) {
-      redirect(data.url);
-    }
-
-    redirect("/login?error=no-url");
   }
 
   return (
@@ -34,13 +26,13 @@ export default async function LoginPage() {
       <div style={cardStyle}>
         <p style={smallLabel}>FocusForge</p>
         <h1 style={titleStyle}>Welcome back</h1>
-        <p style={textStyle}>Sign in to save your tasks, sessions, and streaks.</p>
+        <p style={textStyle}>
+          Sign in to save your tasks, sessions, and streaks.
+        </p>
 
-        <form action={signInWithGoogle}>
-          <button type="submit" style={buttonStyle}>
-            Continue with Google
-          </button>
-        </form>
+        <button type="button" onClick={signInWithGoogle} style={buttonStyle}>
+          Continue with Google
+        </button>
       </div>
     </main>
   );
