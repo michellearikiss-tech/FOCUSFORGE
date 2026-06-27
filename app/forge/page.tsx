@@ -34,14 +34,12 @@ export default function ForgePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [setting, setSetting] = useState("Library");
   const [message, setMessage] = useState("Checking login...");
-
   const [tasks, setTasks] = useState<TaskMap>({
     now: [],
     next: [],
     later: [],
     letgo: [],
   });
-
   const [selectedTask, setSelectedTask] = useState<{ task: Task; column: string } | null>(null);
 
   useEffect(() => {
@@ -50,33 +48,38 @@ export default function ForgePage() {
     let alive = true;
 
     async function checkAuth() {
-      const { data, error } = await supabase.auth.getSession();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
       if (!alive) return;
 
       if (error) {
         setUser(null);
         setAuthChecked(true);
-        setMessage(`Login check failed: ${error.message}`);
+        setMessage(error.message);
         return;
       }
 
-      const currentUser = data.session?.user ?? null;
-
-      setUser(currentUser);
+      setUser(user);
       setAuthChecked(true);
 
-      if (currentUser) {
+      if (user) {
         setMessage("");
-        loadTasks(currentUser.id);
+        loadTasks(user.id);
       } else {
         setMessage("Please log in before adding tasks.");
       }
     }
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
+
       setUser(currentUser);
+      setAuthChecked(true);
 
       if (currentUser) {
         setMessage("");
@@ -85,24 +88,15 @@ export default function ForgePage() {
         setTasks({ now: [], next: [], later: [], letgo: [] });
         setMessage("Please log in before adding tasks.");
       }
-
-      setAuthChecked(true);
     });
 
     checkAuth();
 
     return () => {
       alive = false;
-      listener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
-
-  async function logout() {
-    await supabase.auth.signOut();
-    setUser(null);
-    setTasks({ now: [], next: [], later: [], letgo: [] });
-    setMessage("Logged out. Please log in again to save tasks.");
-  }
 
   async function loadTasks(userId: string) {
     const { data, error } = await supabase
@@ -125,17 +119,23 @@ export default function ForgePage() {
     });
 
     setTasks(grouped);
-    setMessage("");
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    setUser(null);
+    setTasks({ now: [], next: [], later: [], letgo: [] });
+    setMessage("Logged out.");
   }
 
   async function addTask(column: string, text: string) {
-    const cleanText = text.trim();
-    if (!cleanText) return;
-
     if (!user) {
-      setMessage("You need to log in before adding tasks.");
+      window.location.href = "/login";
       return;
     }
+
+    const cleanText = text.trim();
+    if (!cleanText) return;
 
     const { data, error } = await supabase
       .from("tasks")
@@ -216,7 +216,28 @@ export default function ForgePage() {
 
   return (
     <main style={{ position: "relative", minHeight: "100vh", overflowX: "hidden" }}>
-      <Background backgroundImage={backgroundImage} />
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          backgroundImage: `url('${backgroundImage}')`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: "blur(6px)",
+          transform: "scale(1.04)",
+        }}
+      />
+
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          background:
+            "linear-gradient(to bottom, rgba(0,0,0,0.58), rgba(0,0,0,0.48), rgba(0,0,0,0.62))",
+        }}
+      />
 
       <div style={pageContentStyle}>
         <header style={headerStyle}>
@@ -243,26 +264,11 @@ export default function ForgePage() {
               {user ? (
                 <button type="button" onClick={logout} style={logoutButton}>Logout</button>
               ) : (
-                <a href="/login?redirect=/forge" style={logoutButton}>Login</a>
+                <a href="/login" style={logoutButton}>Login</a>
               )}
             </div>
           </div>
         </header>
-
-        {!user && authChecked && (
-          <div style={loginNoticeStyle}>
-            <div>
-              <p style={loginNoticeTitle}>Log in to continue</p>
-              <p style={loginNoticeText}>
-                Save your tasks, return to Forge, and start Focus from your plan.
-              </p>
-            </div>
-
-            <a href="/login?redirect=/forge" style={loginNoticeButton}>
-              Log in to save and add tasks
-            </a>
-          </div>
-        )}
 
         {message && <div style={messageStyle}>{message}</div>}
 
@@ -274,7 +280,7 @@ export default function ForgePage() {
               label={column.label}
               hint={column.hint}
               tasks={tasks[column.key]}
-              disabled={!user}
+              disabled={false}
               onAdd={(text) => addTask(column.key, text)}
               onSelect={(task) => setSelectedTask({ task, column: column.key })}
             />
@@ -298,37 +304,6 @@ export default function ForgePage() {
         </div>
       )}
     </main>
-  );
-}
-
-function Background({ backgroundImage }: { backgroundImage: string }) {
-  return (
-    <>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          backgroundImage: `url('${backgroundImage}')`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(6px)",
-          transform: "scale(1.04)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.58), rgba(0,0,0,0.48), rgba(0,0,0,0.62))",
-        }}
-      />
-    </>
   );
 }
 
@@ -382,7 +357,7 @@ function Quadrant({
             value={value}
             disabled={disabled}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={disabled ? "Login to add thoughts" : "+ Add Thought"}
+            placeholder="+ Add Thought"
             style={inputStyle(disabled)}
           />
         </form>
@@ -439,46 +414,6 @@ const mainTitle = {
   fontSize: "clamp(3rem, 14vw, 4.6rem)",
   fontWeight: 300,
   lineHeight: 0.95,
-};
-
-const loginNoticeStyle = {
-  marginBottom: "22px",
-  border: "1px solid rgba(241,232,218,0.34)",
-  borderRadius: "26px",
-  background: "rgba(241,232,218,0.11)",
-  backdropFilter: "blur(16px)",
-  padding: "20px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "18px",
-  flexWrap: "wrap" as const,
-};
-
-const loginNoticeTitle = {
-  margin: "0 0 6px",
-  fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "2rem",
-  fontWeight: 300,
-  color: "rgba(241,232,218,0.95)",
-};
-
-const loginNoticeText = {
-  margin: 0,
-  fontSize: "15px",
-  lineHeight: 1.5,
-  color: "rgba(241,232,218,0.68)",
-};
-
-const loginNoticeButton = {
-  border: "1px solid rgba(241,232,218,0.44)",
-  borderRadius: "999px",
-  background: "rgba(241,232,218,0.18)",
-  color: "rgba(241,232,218,0.96)",
-  padding: "14px 20px",
-  fontSize: "15px",
-  cursor: "pointer",
-  textDecoration: "none",
 };
 
 const messageStyle = {
