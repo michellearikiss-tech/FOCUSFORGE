@@ -31,6 +31,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   function changeNoise(scene: SoundType) {
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current = null;
     }
 
     const audio = new Audio(files[scene]);
@@ -53,6 +54,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   function setNoiseVolume(volume: number) {
     setNoiseVolumeState(volume);
+
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }
@@ -61,7 +63,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   function stopNoise() {
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current = null;
     }
+
     setIsPlaying(false);
   }
 

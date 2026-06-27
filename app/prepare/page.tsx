@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const backgroundMap: Record<string, string> = {
   Library: "/library-night.png",
@@ -18,104 +17,127 @@ const quoteMap: Record<string, string> = {
 };
 
 export default function PreparePage() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [setting, setSetting] = useState("Library");
-  const [state, setState] = useState("Steady");
+  const setting = searchParams.get("space") || "Library";
+  const state = searchParams.get("state") || "Steady";
 
-  useEffect(() => {
-    const savedSetting = localStorage.getItem("focusSetting") || "Library";
-    const savedState = localStorage.getItem("focusState") || "Steady";
-
-    setSetting(savedSetting);
-    setState(savedState);
-
-    const timer = setTimeout(() => {
-      router.push("/forge");
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [router]);
-
-  const backgroundImage = backgroundMap[setting] || "/library-night.png";
-  const quote = quoteMap[state] || "You already know what you need to do.";
+  const backgroundImage = backgroundMap[setting] || backgroundMap.Library;
+  const quote = quoteMap[state] || quoteMap.Steady;
 
   return (
-    <main
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: `url('${backgroundImage}')`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(6px)",
-          transform: "scale(1.04)",
-        }}
-      />
+    <>
+      <meta httpEquiv="refresh" content="3;url=/forge" />
 
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(0,0,0,0.42)",
-        }}
-      />
-
-      <div
+      <main
         style={{
           position: "relative",
-          zIndex: 10,
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          padding: "40px",
-          color: "rgba(241,232,218,0.9)",
+          height: "100svh",
+          overflow: "hidden",
+          background: "#0b0807",
         }}
       >
-        <p
+        <div
           style={{
-            letterSpacing: "0.35em",
-            textTransform: "uppercase",
-            color: "rgba(241,232,218,0.55)",
-            marginBottom: "28px",
+            position: "fixed",
+            inset: 0,
+            backgroundImage: `url('${backgroundImage}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "blur(5px)",
+            transform: "scale(1.04)",
+            pointerEvents: "none",
+            zIndex: 0,
           }}
-        >
-          {setting} · {state}
-        </p>
+        />
 
-        <h1
+        <div
           style={{
-            fontFamily: "Cormorant Garamond, Georgia, serif",
-            fontWeight: 300,
-            fontSize: "clamp(3rem,5vw,5.4rem)",
-            lineHeight: 1.05,
-            maxWidth: "900px",
-            color: "rgba(241,232,218,0.88)",
+            position: "fixed",
+            inset: 0,
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.42), rgba(0,0,0,0.66))",
+            pointerEvents: "none",
+            zIndex: 1,
           }}
-        >
-          {quote}
-        </h1>
+        />
 
-        <p
+        <div
           style={{
-            marginTop: "34px",
-            color: "rgba(241,232,218,0.55)",
-            letterSpacing: "0.16em",
+            position: "relative",
+            zIndex: 10,
+            height: "100svh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            padding: "28px",
+            color: "rgba(241,232,218,0.9)",
+            boxSizing: "border-box",
           }}
         >
-          Preparing your focus space...
-        </p>
-      </div>
-    </main>
+          <p
+            style={{
+              letterSpacing: "0.28em",
+              textTransform: "uppercase",
+              color: "rgba(241,232,218,0.55)",
+              marginBottom: "24px",
+              fontSize: "11px",
+            }}
+          >
+            {setting} · {state}
+          </p>
+
+          <h1
+            style={{
+              fontFamily: "Cormorant Garamond, Georgia, serif",
+              fontWeight: 300,
+              fontSize: "clamp(2.6rem, 9vw, 5.4rem)",
+              lineHeight: 1.05,
+              maxWidth: "900px",
+              color: "rgba(241,232,218,0.88)",
+              margin: 0,
+            }}
+          >
+            {quote}
+          </h1>
+
+          <p
+            style={{
+              marginTop: "32px",
+              color: "rgba(241,232,218,0.55)",
+              letterSpacing: "0.14em",
+              fontSize: "12px",
+            }}
+          >
+            Preparing your focus space...
+          </p>
+
+          <a
+            href="/forge"
+            style={{
+              marginTop: "28px",
+              width: "100%",
+              maxWidth: "360px",
+              height: "54px",
+              borderRadius: "999px",
+              border: "1px solid rgba(241,232,218,0.36)",
+              background: "rgba(255,255,255,0.08)",
+              color: "rgba(241,232,218,0.9)",
+              fontSize: "14px",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+            }}
+          >
+            Continue to Forge →
+          </a>
+        </div>
+      </main>
+    </>
   );
 }

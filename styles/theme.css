@@ -1,0 +1,25 @@
+:root {
+
+    /* ---------- Colors ---------- */
+  
+    --text-primary: rgba(241,232,218,0.92);
+    --text-secondary: rgba(241,232,218,0.68);
+    --text-muted: rgba(241,232,218,0.42);
+  
+    --glass-bg: rgba(241,232,218,0.08);
+    --glass-border: rgba(241,232,218,0.18);
+  
+    /* ---------- Radius ---------- */
+  
+    --radius-card: 28px;
+    --radius-button: 999px;
+  
+    /* ---------- Spacing ---------- */
+  
+    --space-xs: 8px;
+    --space-sm: 16px;
+    --space-md: 24px;
+    --space-lg: 32px;
+    --space-xl: 48px;
+  
+  }

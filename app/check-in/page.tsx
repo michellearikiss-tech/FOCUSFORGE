@@ -1,260 +1,231 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAudio } from "../context/AudioContext";
+import { useSearchParams } from "next/navigation";
 
-type Scene = "library" | "rain" | "forest" | "stars";
-
-const environments: {
+type Environment = {
   name: string;
-  scene: Scene;
   image: string;
-}[] = [
-  { name: "Library", scene: "library", image: "/library-night.png" },
-  { name: "Rain", scene: "rain", image: "/rainforest-study.png" },
-  { name: "Forest", scene: "forest", image: "/meadow-study.png" },
-  { name: "Stars", scene: "stars", image: "/starry-study.png" },
+};
+
+const environments: Environment[] = [
+  { name: "Library", image: "/library-night.png" },
+  { name: "Rain", image: "/rainforest-study.png" },
+  { name: "Forest", image: "/meadow-study.png" },
+  { name: "Stars", image: "/starry-study.png" },
 ];
 
 const states = ["Energized", "Steady", "Tired", "Overwhelmed"];
 
 export default function CheckIn() {
-  const router = useRouter();
-  const { changeNoise } = useAudio();
+  const searchParams = useSearchParams();
 
-  const [environment, setEnvironment] = useState(environments[0]);
-  const [state, setState] = useState("Steady");
+  const space = searchParams.get("space") || "Library";
+  const state = searchParams.get("state") || "Steady";
 
-  function chooseEnvironment(name: string) {
-    const next = environments.find((item) => item.name === name);
-    if (!next) return;
+  const environment =
+    environments.find((item) => item.name === space) || environments[0];
 
-    setEnvironment(next);
-    changeNoise(next.scene);
+  function optionHref(nextSpace: string, nextState: string) {
+    return `/check-in?space=${encodeURIComponent(
+      nextSpace
+    )}&state=${encodeURIComponent(nextState)}`;
   }
 
-  function enterFocus() {
-    localStorage.setItem("focusSetting", environment.name);
-    localStorage.setItem("focusState", state);
-    router.push("/prepare");
+  function prepareHref() {
+    return `/prepare?space=${encodeURIComponent(
+      space
+    )}&state=${encodeURIComponent(state)}`;
   }
 
   return (
-    <main style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+    <main style={mainStyle}>
       <div
-        key={environment.image}
         style={{
-          position: "absolute",
-          inset: 0,
+          ...backgroundStyle,
           backgroundImage: `url('${environment.image}')`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(8px)",
-          transform: "scale(1.05)",
         }}
       />
 
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.42)" }} />
+      <div style={overlayStyle} />
 
-      <div
-        style={{
-          position: "relative",
-          zIndex: 10,
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          padding: "40px",
-          color: "rgba(241,232,218,0.9)",
-        }}
-      >
-        <p
-          style={{
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            color: "rgba(241,232,218,0.65)",
-            marginBottom: "24px",
-          }}
-        >
-          Before You Begin
-        </p>
+      <div style={contentStyle}>
+        <p style={topLabel}>Before You Begin</p>
 
-        <h1
-          style={{
-            fontFamily: "Cormorant Garamond, Georgia, serif",
-            fontWeight: 300,
-            fontSize: "clamp(2.4rem,4vw,4.2rem)",
-            lineHeight: 1.08,
-            maxWidth: "820px",
-            color: "rgba(241,232,218,0.56)",
-            marginBottom: "64px",
-          }}
-        >
+        <h1 style={titleStyle}>
           The life you want
           <br />
-          <em style={{ color: "rgba(241,232,218,0.5)" }}>
+          <em style={{ color: "rgba(241,232,218,0.56)" }}>
             is earned in moments like this.
           </em>
         </h1>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "80px",
-            width: "min(1000px,90vw)",
-          }}
-        >
-          <EnvironmentGroup selected={environment.name} onSelect={chooseEnvironment} />
+        <div style={groupsGrid}>
+          <div style={{ width: "100%" }}>
+            <p style={groupLabel}>Choose Your Space</p>
 
-          <ChoiceGroup
-            title="How Are You Arriving Today?"
-            items={states}
-            selected={state}
-            onSelect={setState}
-          />
+            <div style={buttonGrid}>
+              {environments.map((item) => (
+                <a
+                  key={item.name}
+                  href={optionHref(item.name, state)}
+                  style={space === item.name ? activeChoiceButton : choiceButton}
+                >
+                  {item.name}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ width: "100%" }}>
+            <p style={groupLabel}>How Are You Arriving Today?</p>
+
+            <div style={buttonGrid}>
+              {states.map((item) => (
+                <a
+                  key={item}
+                  href={optionHref(space, item)}
+                  style={state === item ? activeChoiceButton : choiceButton}
+                >
+                  {item}
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <button
-          onClick={enterFocus}
-          style={{
-            marginTop: "60px",
-            width: "380px",
-            height: "72px",
-            borderRadius: "999px",
-            border: "1px solid rgba(241,232,218,0.35)",
-            background: "rgba(255,255,255,0.05)",
-            backdropFilter: "blur(12px)",
-            color: "rgba(241,232,218,0.9)",
-            fontSize: "1rem",
-            letterSpacing: "0.25em",
-            textTransform: "uppercase",
-            cursor: "pointer",
-          }}
-        >
+        <a href={prepareHref()} style={enterButton}>
           Enter Focus →
-        </button>
+        </a>
+
+        <div style={brandStyle}>FocusForge</div>
       </div>
-      <div
-  style={{
-    position: "absolute",
-    bottom: "28px",
-    left: "32px",
-    letterSpacing: "0.34em",
-    textTransform: "uppercase",
-    fontSize: "12px",
-    color: "rgba(241,232,218,0.38)",
-  }}
->
-  FocusForge
-</div>
     </main>
   );
 }
 
-function EnvironmentGroup({
-  selected,
-  onSelect,
-}: {
-  selected: string;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <div>
-      <p
-        style={{
-          marginBottom: "20px",
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "rgba(241,232,218,0.65)",
-        }}
-      >
-        Choose Your Space
-      </p>
+const mainStyle = {
+  position: "relative" as const,
+  height: "100svh",
+  overflow: "hidden",
+  background: "#0b0807",
+};
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}>
-        {environments.map((item) => {
-          const active = selected === item.name;
+const backgroundStyle = {
+  position: "fixed" as const,
+  inset: 0,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  filter: "blur(4px)",
+  transform: "scale(1.04)",
+  pointerEvents: "none" as const,
+  zIndex: 0,
+};
 
-          return (
-            <button
-              key={item.name}
-              onClick={() => onSelect(item.name)}
-              style={{
-                height: "120px",
-                borderRadius: "24px",
-                border: active
-                  ? "1px solid rgba(241,232,218,0.75)"
-                  : "1px solid rgba(241,232,218,0.25)",
-                background: active ? "rgba(241,232,218,0.12)" : "rgba(0,0,0,0.15)",
-                backdropFilter: "blur(12px)",
-                color: "rgba(241,232,218,0.9)",
-                fontSize: "1.15rem",
-                cursor: "pointer",
-              }}
-            >
-              {item.name}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const overlayStyle = {
+  position: "fixed" as const,
+  inset: 0,
+  background:
+    "linear-gradient(to bottom, rgba(0,0,0,0.42), rgba(0,0,0,0.66))",
+  pointerEvents: "none" as const,
+  zIndex: 1,
+};
 
-function ChoiceGroup({
-  title,
-  items,
-  selected,
-  onSelect,
-}: {
-  title: string;
-  items: string[];
-  selected: string;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <div>
-      <p
-        style={{
-          marginBottom: "20px",
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "rgba(241,232,218,0.65)",
-        }}
-      >
-        {title}
-      </p>
+const contentStyle = {
+  position: "relative" as const,
+  zIndex: 10,
+  height: "100svh",
+  display: "flex",
+  flexDirection: "column" as const,
+  alignItems: "center",
+  justifyContent: "center",
+  textAlign: "center" as const,
+  padding: "18px 20px",
+  color: "rgba(241,232,218,0.9)",
+  boxSizing: "border-box" as const,
+};
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" }}>
-        {items.map((item) => {
-          const active = selected === item;
+const topLabel = {
+  letterSpacing: "0.24em",
+  textTransform: "uppercase" as const,
+  color: "rgba(241,232,218,0.62)",
+  margin: "0 0 10px",
+  fontSize: "10px",
+};
 
-          return (
-            <button
-              key={item}
-              onClick={() => onSelect(item)}
-              style={{
-                height: "120px",
-                borderRadius: "24px",
-                border: active
-                  ? "1px solid rgba(241,232,218,0.75)"
-                  : "1px solid rgba(241,232,218,0.25)",
-                background: active ? "rgba(241,232,218,0.12)" : "rgba(0,0,0,0.15)",
-                backdropFilter: "blur(12px)",
-                color: "rgba(241,232,218,0.9)",
-                fontSize: "1.15rem",
-                cursor: "pointer",
-              }}
-            >
-              {item}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const titleStyle = {
+  fontFamily: "Cormorant Garamond, Georgia, serif",
+  fontWeight: 300,
+  fontSize: "clamp(2rem, 6vw, 4.2rem)",
+  lineHeight: 1.05,
+  maxWidth: "760px",
+  color: "rgba(241,232,218,0.64)",
+  margin: "0 0 24px",
+};
+
+const groupsGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: "24px",
+  width: "100%",
+  maxWidth: "980px",
+};
+
+const groupLabel = {
+  margin: "0 0 12px",
+  letterSpacing: "0.18em",
+  textTransform: "uppercase" as const,
+  color: "rgba(241,232,218,0.66)",
+  fontSize: "11px",
+};
+
+const buttonGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "14px",
+  width: "100%",
+};
+
+const choiceButton = {
+  height: "78px",
+  borderRadius: "22px",
+  border: "1px solid rgba(241,232,218,0.25)",
+  background: "rgba(0,0,0,0.16)",
+  color: "rgba(241,232,218,0.9)",
+  fontSize: "1rem",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
+};
+
+const activeChoiceButton = {
+  ...choiceButton,
+  border: "1px solid rgba(241,232,218,0.78)",
+  background: "rgba(241,232,218,0.16)",
+};
+
+const enterButton = {
+  marginTop: "28px",
+  width: "100%",
+  maxWidth: "440px",
+  height: "58px",
+  borderRadius: "999px",
+  border: "1px solid rgba(241,232,218,0.4)",
+  background: "rgba(255,255,255,0.08)",
+  color: "rgba(241,232,218,0.94)",
+  fontSize: "0.92rem",
+  letterSpacing: "0.2em",
+  textTransform: "uppercase" as const,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
+};
+
+const brandStyle = {
+  marginTop: "14px",
+  letterSpacing: "0.3em",
+  textTransform: "uppercase" as const,
+  fontSize: "9px",
+  color: "rgba(241,232,218,0.28)",
+};

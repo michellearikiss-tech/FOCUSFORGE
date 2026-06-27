@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/utils/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 const backgroundMap: Record<string, string> = {
   Library: "/library-night.png",
@@ -10,41 +12,29 @@ const backgroundMap: Record<string, string> = {
 };
 
 const columns = [
-  {
-    key: "now",
-    title: "NOW",
-    label: "Do first",
-    hint: "The one thing that needs your attention first.",
-  },
-  {
-    key: "next",
-    title: "NEXT",
-    label: "Plan",
-    hint: "Important, but not immediate.",
-  },
-  {
-    key: "later",
-    title: "LATER",
-    label: "Keep for later",
-    hint: "Worth keeping, not worth starting now.",
-  },
-  {
-    key: "letgo",
-    title: "LET GO",
-    label: "Release",
-    hint: "Noise, distractions, and things to release.",
-  },
+  { key: "now", title: "NOW", label: "Do first", hint: "The one thing that needs your attention first." },
+  { key: "next", title: "NEXT", label: "Plan", hint: "Important, but not immediate." },
+  { key: "later", title: "LATER", label: "Keep for later", hint: "Worth keeping, not worth starting now." },
+  { key: "letgo", title: "LET GO", label: "Release", hint: "Noise, distractions, and things to release." },
 ];
 
 type Task = {
+  id: string;
+  user_id: string;
+  column_key: string;
   text: string;
   done: boolean;
+  created_at?: string;
 };
 
 type TaskMap = Record<string, Task[]>;
 
 export default function ForgePage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [setting, setSetting] = useState("Library");
+  const [message, setMessage] = useState("Checking login...");
+
   const [tasks, setTasks] = useState<TaskMap>({
     now: [],
     next: [],
@@ -52,57 +42,165 @@ export default function ForgePage() {
     letgo: [],
   });
 
-  const [selectedTask, setSelectedTask] = useState<{
-    column: string;
-    index: number;
-    text: string;
-  } | null>(null);
+  const [selectedTask, setSelectedTask] = useState<{ task: Task; column: string } | null>(null);
 
   useEffect(() => {
     setSetting(localStorage.getItem("focusSetting") || "Library");
 
-    const saved = localStorage.getItem("forgeTasks");
-    if (saved) {
-      setTasks(JSON.parse(saved));
+    let alive = true;
+
+    async function checkAuth() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!alive) return;
+
+      if (error) {
+        setUser(null);
+        setAuthChecked(true);
+        setMessage(`Login check failed: ${error.message}`);
+        return;
+      }
+
+      const currentUser = data.session?.user ?? null;
+
+      setUser(currentUser);
+      setAuthChecked(true);
+
+      if (currentUser) {
+        setMessage("");
+        loadTasks(currentUser.id);
+      } else {
+        setMessage("Please log in before adding tasks.");
+      }
     }
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        setMessage("");
+        loadTasks(currentUser.id);
+      } else {
+        setTasks({ now: [], next: [], later: [], letgo: [] });
+        setMessage("Please log in before adding tasks.");
+      }
+
+      setAuthChecked(true);
+    });
+
+    checkAuth();
+
+    return () => {
+      alive = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("forgeTasks", JSON.stringify(tasks));
-  }, [tasks]);
-
-  const backgroundImage = backgroundMap[setting] || "/library-night.png";
-
-  function addTask(column: string, text: string) {
-    if (!text.trim()) return;
-
-    setTasks((prev) => ({
-      ...prev,
-      [column]: [...prev[column], { text: text.trim(), done: false }],
-    }));
+  async function logout() {
+    await supabase.auth.signOut();
+    setUser(null);
+    setTasks({ now: [], next: [], later: [], letgo: [] });
+    setMessage("Logged out. Please log in again to save tasks.");
   }
 
-  function completeTask() {
-    if (!selectedTask) return;
+  async function loadTasks(userId: string) {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setMessage(`Could not load tasks: ${error.message}`);
+      return;
+    }
+
+    const grouped: TaskMap = { now: [], next: [], later: [], letgo: [] };
+
+    data?.forEach((task) => {
+      if (grouped[task.column_key]) {
+        grouped[task.column_key].push(task);
+      }
+    });
+
+    setTasks(grouped);
+    setMessage("");
+  }
+
+  async function addTask(column: string, text: string) {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+
+    if (!user) {
+      setMessage("You need to log in before adding tasks.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        user_id: user.id,
+        column_key: column,
+        text: cleanText,
+        done: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      setMessage(`Could not add task: ${error.message}`);
+      return;
+    }
 
     setTasks((prev) => ({
       ...prev,
-      [selectedTask.column]: prev[selectedTask.column].map((task, index) =>
-        index === selectedTask.index ? { ...task, done: true } : task
+      [column]: [...prev[column], data],
+    }));
+
+    setMessage("");
+  }
+
+  async function completeTask() {
+    if (!selectedTask) return;
+
+    const { task, column } = selectedTask;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ done: true })
+      .eq("id", task.id);
+
+    if (error) {
+      setMessage(`Could not complete task: ${error.message}`);
+      return;
+    }
+
+    setTasks((prev) => ({
+      ...prev,
+      [column]: prev[column].map((item) =>
+        item.id === task.id ? { ...item, done: true } : item
       ),
     }));
 
     setSelectedTask(null);
   }
 
-  function deleteTask() {
+  async function deleteTask() {
     if (!selectedTask) return;
+
+    const { task, column } = selectedTask;
+
+    const { error } = await supabase.from("tasks").delete().eq("id", task.id);
+
+    if (error) {
+      setMessage(`Could not delete task: ${error.message}`);
+      return;
+    }
 
     setTasks((prev) => ({
       ...prev,
-      [selectedTask.column]: prev[selectedTask.column].filter(
-        (_, index) => index !== selectedTask.index
-      ),
+      [column]: prev[column].filter((item) => item.id !== task.id),
     }));
 
     setSelectedTask(null);
@@ -110,23 +208,108 @@ export default function ForgePage() {
 
   function startFocus() {
     if (!selectedTask) return;
-
-    localStorage.setItem("activeTask", selectedTask.text);
+    localStorage.setItem("activeTask", selectedTask.task.text);
     window.location.href = "/focus";
   }
 
+  const backgroundImage = backgroundMap[setting] || backgroundMap.Library;
+
   return (
-    <main
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        overflow: "hidden",
-      }}
-    >
+    <main style={{ position: "relative", minHeight: "100vh", overflowX: "hidden" }}>
+      <Background backgroundImage={backgroundImage} />
+
+      <div style={pageContentStyle}>
+        <header style={headerStyle}>
+          <div>
+            <p style={smallLabel}>FocusForge</p>
+            <h1 style={mainTitle}>What matters now?</h1>
+          </div>
+
+          <div style={headerActionsStyle}>
+            <div style={{ textAlign: "right" }}>
+              <p style={{ margin: 0, fontSize: "13px", color: "rgba(241,232,218,0.5)" }}>
+                {!authChecked ? "Checking account" : user ? "Signed in as" : "Not signed in"}
+              </p>
+
+              <p style={{ margin: "4px 0 0", fontSize: "14px", color: "rgba(241,232,218,0.78)" }}>
+                {!authChecked ? "Please wait..." : user?.email || "Login needed to save tasks"}
+              </p>
+            </div>
+
+            <div style={actionRowStyle}>
+              <a href="/calendar" style={featureButtonStyle}>Calendar</a>
+              <a href="/check-in" style={secondaryFeatureButtonStyle}>Change Space</a>
+
+              {user ? (
+                <button type="button" onClick={logout} style={logoutButton}>Logout</button>
+              ) : (
+                <a href="/login?redirect=/forge" style={logoutButton}>Login</a>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {!user && authChecked && (
+          <div style={loginNoticeStyle}>
+            <div>
+              <p style={loginNoticeTitle}>Log in to continue</p>
+              <p style={loginNoticeText}>
+                Save your tasks, return to Forge, and start Focus from your plan.
+              </p>
+            </div>
+
+            <a href="/login?redirect=/forge" style={loginNoticeButton}>
+              Log in to save and add tasks
+            </a>
+          </div>
+        )}
+
+        {message && <div style={messageStyle}>{message}</div>}
+
+        <section style={quadrantGrid}>
+          {columns.map((column) => (
+            <Quadrant
+              key={column.key}
+              title={column.title}
+              label={column.label}
+              hint={column.hint}
+              tasks={tasks[column.key]}
+              disabled={!user}
+              onAdd={(text) => addTask(column.key, text)}
+              onSelect={(task) => setSelectedTask({ task, column: column.key })}
+            />
+          ))}
+        </section>
+      </div>
+
+      {selectedTask && (
+        <div style={modalOverlay}>
+          <div style={modalCard}>
+            <button type="button" onClick={() => setSelectedTask(null)} style={closeButton}>×</button>
+
+            <p style={smallLabel}>Selected Thought</p>
+            <h2 style={modalTitle}>{selectedTask.task.text}</h2>
+            <p style={modalText}>Choose what happens next.</p>
+
+            <button type="button" onClick={startFocus} style={primaryButtonStyle}>Start Focus</button>
+            <button type="button" onClick={completeTask} style={secondaryButtonStyle}>Mark Complete</button>
+            <button type="button" onClick={deleteTask} style={dangerButtonStyle}>Delete</button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function Background({ backgroundImage }: { backgroundImage: string }) {
+  return (
+    <>
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
           backgroundImage: `url('${backgroundImage}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -137,184 +320,15 @@ export default function ForgePage() {
 
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
           background:
             "linear-gradient(to bottom, rgba(0,0,0,0.58), rgba(0,0,0,0.48), rgba(0,0,0,0.62))",
         }}
       />
-
-      <div
-        style={{
-          position: "relative",
-          zIndex: 10,
-          minHeight: "100vh",
-          padding: "44px 56px",
-          color: "rgba(241,232,218,0.92)",
-        }}
-      >
-        <header
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: "34px",
-          }}
-        >
-          <div>
-            <p
-              style={{
-                margin: 0,
-                letterSpacing: "0.34em",
-                textTransform: "uppercase",
-                color: "rgba(241,232,218,0.58)",
-                fontSize: "13px",
-              }}
-            >
-              FocusForge
-            </p>
-
-            <h1
-              style={{
-                margin: "10px 0 0",
-                fontFamily: "Cormorant Garamond, Georgia, serif",
-                fontSize: "clamp(2.4rem,4.2vw,4.6rem)",
-                fontWeight: 300,
-                lineHeight: 1,
-                color: "rgba(241,232,218,0.9)",
-              }}
-            >
-              What matters now?
-            </h1>
-          </div>
-
-          <a
-            href="/check-in"
-            style={{
-              color: "rgba(241,232,218,0.72)",
-              textDecoration: "none",
-              fontSize: "15px",
-            }}
-          >
-            Change Space
-          </a>
-        </header>
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "24px",
-          }}
-        >
-          {columns.map((column) => (
-            <Quadrant
-              key={column.key}
-              columnKey={column.key}
-              title={column.title}
-              label={column.label}
-              hint={column.hint}
-              tasks={tasks[column.key]}
-              onAdd={(text) => addTask(column.key, text)}
-              onSelect={(index, text) =>
-                setSelectedTask({
-                  column: column.key,
-                  index,
-                  text,
-                })
-              }
-            />
-          ))}
-        </section>
-      </div>
-
-      {selectedTask && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 30,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,0,0.48)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <div
-            style={{
-              width: "440px",
-              borderRadius: "30px",
-              border: "1px solid rgba(241,232,218,0.3)",
-              background: "rgba(10,8,6,0.8)",
-              padding: "34px",
-              color: "rgba(241,232,218,0.92)",
-              boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
-            }}
-          >
-            <button
-              onClick={() => setSelectedTask(null)}
-              style={{
-                float: "right",
-                background: "transparent",
-                border: "none",
-                color: "rgba(241,232,218,0.7)",
-                fontSize: "24px",
-                cursor: "pointer",
-              }}
-            >
-              ×
-            </button>
-
-            <p
-              style={{
-                margin: "0 0 14px",
-                letterSpacing: "0.24em",
-                textTransform: "uppercase",
-                color: "rgba(241,232,218,0.55)",
-                fontSize: "12px",
-              }}
-            >
-              Selected Thought
-            </p>
-
-            <h2
-              style={{
-                fontFamily: "Cormorant Garamond, Georgia, serif",
-                fontSize: "2.5rem",
-                fontWeight: 300,
-                margin: "0 0 8px",
-                lineHeight: 1.05,
-              }}
-            >
-              {selectedTask.text}
-            </h2>
-
-            <p
-              style={{
-                color: "rgba(241,232,218,0.6)",
-                margin: "0 0 34px",
-                fontSize: "15px",
-              }}
-            >
-              Choose what happens next.
-            </p>
-
-            <button onClick={startFocus} style={primaryButtonStyle}>
-              Start Focus
-            </button>
-
-            <button onClick={completeTask} style={secondaryButtonStyle}>
-              Mark Complete
-            </button>
-
-            <button onClick={deleteTask} style={dangerButtonStyle}>
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-    </main>
+    </>
   );
 }
 
@@ -323,112 +337,36 @@ function Quadrant({
   label,
   hint,
   tasks,
+  disabled,
   onAdd,
   onSelect,
 }: {
-  columnKey: string;
   title: string;
   label: string;
   hint: string;
   tasks: Task[];
+  disabled: boolean;
   onAdd: (text: string) => void;
-  onSelect: (index: number, text: string) => void;
+  onSelect: (task: Task) => void;
 }) {
   const [value, setValue] = useState("");
 
   return (
-    <div
-      style={{
-        minHeight: "260px",
-        borderRadius: "28px",
-        border: "1px solid rgba(241,232,218,0.24)",
-        background: "rgba(10,8,6,0.24)",
-        backdropFilter: "blur(14px)",
-        padding: "28px 30px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.16)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: "14px",
-        }}
-      >
+    <div style={quadrantCard}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "14px", marginBottom: "14px" }}>
         <div>
-          <p
-            style={{
-              margin: 0,
-              letterSpacing: "0.26em",
-              textTransform: "uppercase",
-              fontSize: "13px",
-              color: "rgba(241,232,218,0.68)",
-            }}
-          >
-            {title}
-          </p>
-
-          <h2
-            style={{
-              margin: "8px 0 0",
-              fontFamily: "Cormorant Garamond, Georgia, serif",
-              fontSize: "2rem",
-              fontWeight: 300,
-              color: "rgba(241,232,218,0.88)",
-            }}
-          >
-            {label}
-          </h2>
+          <p style={columnTitle}>{title}</p>
+          <h2 style={columnLabel}>{label}</h2>
         </div>
 
-        <span
-          style={{
-            color: "rgba(241,232,218,0.38)",
-            fontSize: "22px",
-          }}
-        >
-          →
-        </span>
+        <span style={{ color: "rgba(241,232,218,0.38)", fontSize: "22px" }}>→</span>
       </div>
 
-      <p
-        style={{
-          margin: "0 0 22px",
-          maxWidth: "480px",
-          fontSize: "15px",
-          lineHeight: 1.6,
-          color: "rgba(241,232,218,0.58)",
-        }}
-      >
-        {hint}
-      </p>
+      <p style={hintStyle}>{hint}</p>
 
-      <div
-        style={{
-          display: "grid",
-          gap: "12px",
-        }}
-      >
-        {tasks.map((task, index) => (
-          <button
-            key={`${task.text}-${index}`}
-            onClick={() => onSelect(index, task.text)}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              border: "1px solid rgba(241,232,218,0.13)",
-              borderRadius: "16px",
-              background: "rgba(255,255,255,0.045)",
-              color: task.done
-                ? "rgba(241,232,218,0.42)"
-                : "rgba(241,232,218,0.86)",
-              fontSize: "15px",
-              cursor: "pointer",
-              textDecoration: task.done ? "line-through" : "none",
-              padding: "12px 14px",
-            }}
-          >
+      <div style={{ display: "grid", gap: "12px" }}>
+        {tasks.map((task) => (
+          <button key={task.id} type="button" onClick={() => onSelect(task)} style={taskButton(task.done)}>
             {task.done ? "✓" : "○"} {task.text}
           </button>
         ))}
@@ -442,25 +380,248 @@ function Quadrant({
         >
           <input
             value={value}
+            disabled={disabled}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="+ Add Thought"
-            style={{
-              width: "100%",
-              marginTop: "4px",
-              border: "1px solid rgba(241,232,218,0.18)",
-              borderRadius: "999px",
-              background: "rgba(255,255,255,0.04)",
-              padding: "13px 18px",
-              color: "rgba(241,232,218,0.9)",
-              outline: "none",
-              fontSize: "14px",
-            }}
+            placeholder={disabled ? "Login to add thoughts" : "+ Add Thought"}
+            style={inputStyle(disabled)}
           />
         </form>
       </div>
     </div>
   );
 }
+
+const pageContentStyle = {
+  position: "relative" as const,
+  zIndex: 10,
+  minHeight: "100vh",
+  width: "100%",
+  boxSizing: "border-box" as const,
+  padding: "clamp(28px, 7vw, 44px) clamp(18px, 6vw, 56px)",
+  color: "rgba(241,232,218,0.92)",
+};
+
+const headerStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "24px",
+  marginBottom: "24px",
+  flexWrap: "wrap" as const,
+};
+
+const headerActionsStyle = {
+  display: "flex",
+  flexDirection: "column" as const,
+  alignItems: "flex-end",
+  gap: "16px",
+  maxWidth: "100%",
+};
+
+const actionRowStyle = {
+  display: "flex",
+  gap: "12px",
+  flexWrap: "wrap" as const,
+  justifyContent: "flex-end",
+};
+
+const smallLabel = {
+  margin: 0,
+  letterSpacing: "0.34em",
+  textTransform: "uppercase" as const,
+  color: "rgba(241,232,218,0.58)",
+  fontSize: "13px",
+};
+
+const mainTitle = {
+  margin: "10px 0 0",
+  fontFamily: "Cormorant Garamond, Georgia, serif",
+  fontSize: "clamp(3rem, 14vw, 4.6rem)",
+  fontWeight: 300,
+  lineHeight: 0.95,
+};
+
+const loginNoticeStyle = {
+  marginBottom: "22px",
+  border: "1px solid rgba(241,232,218,0.34)",
+  borderRadius: "26px",
+  background: "rgba(241,232,218,0.11)",
+  backdropFilter: "blur(16px)",
+  padding: "20px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "18px",
+  flexWrap: "wrap" as const,
+};
+
+const loginNoticeTitle = {
+  margin: "0 0 6px",
+  fontFamily: "Cormorant Garamond, Georgia, serif",
+  fontSize: "2rem",
+  fontWeight: 300,
+  color: "rgba(241,232,218,0.95)",
+};
+
+const loginNoticeText = {
+  margin: 0,
+  fontSize: "15px",
+  lineHeight: 1.5,
+  color: "rgba(241,232,218,0.68)",
+};
+
+const loginNoticeButton = {
+  border: "1px solid rgba(241,232,218,0.44)",
+  borderRadius: "999px",
+  background: "rgba(241,232,218,0.18)",
+  color: "rgba(241,232,218,0.96)",
+  padding: "14px 20px",
+  fontSize: "15px",
+  cursor: "pointer",
+  textDecoration: "none",
+};
+
+const messageStyle = {
+  marginBottom: "20px",
+  border: "1px solid rgba(241,232,218,0.22)",
+  borderRadius: "18px",
+  background: "rgba(10,8,6,0.32)",
+  padding: "13px 16px",
+  color: "rgba(241,232,218,0.72)",
+  fontSize: "14px",
+};
+
+const quadrantGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: "22px",
+};
+
+const quadrantCard = {
+  minHeight: "230px",
+  borderRadius: "28px",
+  border: "1px solid rgba(241,232,218,0.24)",
+  background: "rgba(10,8,6,0.24)",
+  backdropFilter: "blur(14px)",
+  padding: "24px",
+  boxSizing: "border-box" as const,
+};
+
+const columnTitle = {
+  margin: 0,
+  letterSpacing: "0.26em",
+  textTransform: "uppercase" as const,
+  fontSize: "13px",
+  color: "rgba(241,232,218,0.68)",
+};
+
+const columnLabel = {
+  margin: "8px 0 0",
+  fontFamily: "Cormorant Garamond, Georgia, serif",
+  fontSize: "clamp(2rem, 9vw, 2.8rem)",
+  fontWeight: 300,
+};
+
+const hintStyle = {
+  margin: "0 0 22px",
+  fontSize: "15px",
+  lineHeight: 1.6,
+  color: "rgba(241,232,218,0.58)",
+};
+
+function inputStyle(disabled: boolean) {
+  return {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    marginTop: "4px",
+    border: "1px solid rgba(241,232,218,0.18)",
+    borderRadius: "999px",
+    background: disabled ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.04)",
+    padding: "13px 18px",
+    color: disabled ? "rgba(241,232,218,0.35)" : "rgba(241,232,218,0.9)",
+    outline: "none",
+    fontSize: "14px",
+  };
+}
+
+function taskButton(done: boolean) {
+  return {
+    width: "100%",
+    textAlign: "left" as const,
+    border: "1px solid rgba(241,232,218,0.13)",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.045)",
+    color: done ? "rgba(241,232,218,0.42)" : "rgba(241,232,218,0.86)",
+    fontSize: "15px",
+    cursor: "pointer",
+    textDecoration: done ? "line-through" : "none",
+    padding: "12px 14px",
+  };
+}
+
+const modalOverlay = {
+  position: "fixed" as const,
+  inset: 0,
+  zIndex: 30,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "rgba(0,0,0,0.48)",
+  backdropFilter: "blur(10px)",
+  padding: "18px",
+};
+
+const modalCard = {
+  width: "min(440px, 100%)",
+  borderRadius: "30px",
+  border: "1px solid rgba(241,232,218,0.3)",
+  background: "rgba(10,8,6,0.8)",
+  padding: "34px",
+  boxSizing: "border-box" as const,
+};
+
+const closeButton = {
+  float: "right" as const,
+  background: "transparent",
+  border: "none",
+  color: "rgba(241,232,218,0.7)",
+  fontSize: "24px",
+  cursor: "pointer",
+};
+
+const modalTitle = {
+  fontFamily: "Cormorant Garamond, Georgia, serif",
+  fontSize: "2.5rem",
+  fontWeight: 300,
+  margin: "14px 0 8px",
+};
+
+const modalText = {
+  color: "rgba(241,232,218,0.6)",
+  margin: "0 0 34px",
+  fontSize: "15px",
+};
+
+const featureButtonStyle = {
+  border: "1px solid rgba(241,232,218,0.32)",
+  borderRadius: "999px",
+  background: "rgba(241,232,218,0.11)",
+  color: "rgba(241,232,218,0.92)",
+  padding: "12px 22px",
+  textDecoration: "none",
+  fontSize: "15px",
+};
+
+const secondaryFeatureButtonStyle = {
+  ...featureButtonStyle,
+  background: "rgba(255,255,255,0.06)",
+  color: "rgba(241,232,218,0.82)",
+};
+
+const logoutButton = {
+  ...secondaryFeatureButtonStyle,
+  cursor: "pointer",
+};
 
 const primaryButtonStyle = {
   width: "100%",
@@ -485,11 +646,6 @@ const secondaryButtonStyle = {
 };
 
 const dangerButtonStyle = {
-  width: "100%",
-  padding: "14px",
-  border: "none",
-  background: "transparent",
+  ...secondaryButtonStyle,
   color: "rgba(241,160,150,0.72)",
-  fontSize: "15px",
-  cursor: "pointer",
 };

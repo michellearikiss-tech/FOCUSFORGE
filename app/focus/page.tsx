@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAudio } from "../context/AudioContext";
+import { supabase } from "@/utils/supabase/client";
 
 const backgroundMap: Record<string, string> = {
   Library: "/library-night.png",
@@ -17,17 +18,11 @@ const sceneMap: Record<string, "library" | "rain" | "forest" | "stars"> = {
   Stars: "stars",
 };
 
-const musicMap: Record<string, string | null> = {
-  Library: "/audio/library-music.mp3",
-  Rain: "/audio/rain-music.mp3",
-  Forest: null,
-  Stars: "/audio/stars-music.mp3",
-};
-
 export default function FocusPage() {
   const { changeNoise, noiseVolume, setNoiseVolume } = useAudio();
   const musicRef = useRef<HTMLAudioElement | null>(null);
 
+  const [userId, setUserId] = useState("");
   const [task, setTask] = useState("Deep Work Session");
   const [setting, setSetting] = useState("Library");
 
@@ -40,10 +35,16 @@ export default function FocusPage() {
   const [phase, setPhase] = useState<"focus" | "break">("focus");
   const [seconds, setSeconds] = useState(25 * 60);
 
-  const [musicOn, setMusicOn] = useState(false);
   const [musicVolume, setMusicVolume] = useState(0.25);
 
   useEffect(() => {
+    async function loadUser() {
+      const { data } = await supabase.auth.getUser();
+      setUserId(data.user?.id || "");
+    }
+
+    loadUser();
+
     const savedTask = localStorage.getItem("activeTask") || "Deep Work Session";
     const savedSetting = localStorage.getItem("focusSetting") || "Library";
 
@@ -76,14 +77,7 @@ export default function FocusPage() {
     return () => clearInterval(interval);
   }, [started, running, mode, phase, breakMinutes]);
 
-  useEffect(() => {
-    if (musicRef.current) {
-      musicRef.current.volume = musicVolume;
-    }
-  }, [musicVolume]);
-
   const backgroundImage = backgroundMap[setting] || "/library-night.png";
-  const musicSrc = musicMap[setting];
 
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
@@ -95,58 +89,75 @@ export default function FocusPage() {
     setSeconds(mode === "timer" ? focusMinutes * 60 : 0);
   }
 
-  function toggleMusic() {
-    if (!musicRef.current || !musicSrc) return;
-
-    if (musicOn) {
-      musicRef.current.pause();
-      setMusicOn(false);
-    } else {
-      musicRef.current.play();
-      setMusicOn(true);
+  async function completeSession() {
+    if (!userId) {
+      window.location.href = "/complete";
+      return;
     }
-  }
 
-  function completeSession() {
-    window.location.href = "/forge";
+    const durationMinutes =
+      mode === "timer" ? focusMinutes : Math.max(1, Math.floor(seconds / 60));
+
+    const { error } = await supabase.from("study_sessions").insert({
+      user_id: userId,
+      task_name: task,
+      duration_minutes: durationMinutes,
+    });
+
+    if (error) {
+      console.error("Save study session error:", error);
+    }
+
+    window.location.href = "/complete";
   }
 
   return (
-    <main style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+    <main
+      style={{
+        position: "relative",
+        minHeight: "100svh",
+        overflow: "hidden",
+        background: "#0b0807",
+      }}
+    >
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           inset: 0,
           backgroundImage: `url('${backgroundImage}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "blur(5px)",
+          filter: "blur(3px)",
           transform: "scale(1.04)",
+          pointerEvents: "none",
+          zIndex: 0,
         }}
       />
 
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,0.6)",
+          background:
+            "linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.68))",
+          pointerEvents: "none",
+          zIndex: 1,
         }}
       />
-
-      {musicSrc && <audio ref={musicRef} src={musicSrc} loop />}
 
       <div
         style={{
           position: "relative",
           zIndex: 10,
-          minHeight: "100vh",
+          minHeight: "100svh",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           textAlign: "center",
-          padding: "40px",
+          padding: "24px 20px",
           color: "rgba(241,232,218,0.9)",
+          boxSizing: "border-box",
         }}
       >
         {!started ? (
@@ -158,6 +169,7 @@ export default function FocusPage() {
             <div style={setupBox}>
               <div style={rowStyle}>
                 <button
+                  type="button"
                   onClick={() => setMode("timer")}
                   style={mode === "timer" ? activeButton : optionButton}
                 >
@@ -165,6 +177,7 @@ export default function FocusPage() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setMode("stopwatch")}
                   style={mode === "stopwatch" ? activeButton : optionButton}
                 >
@@ -178,9 +191,12 @@ export default function FocusPage() {
                   <div style={rowStyle}>
                     {[15, 25, 45, 60].map((min) => (
                       <button
+                        type="button"
                         key={min}
                         onClick={() => setFocusMinutes(min)}
-                        style={focusMinutes === min ? activeButton : optionButton}
+                        style={
+                          focusMinutes === min ? activeButton : optionButton
+                        }
                       >
                         {min} min
                       </button>
@@ -191,9 +207,12 @@ export default function FocusPage() {
                   <div style={rowStyle}>
                     {[5, 10, 15].map((min) => (
                       <button
+                        type="button"
                         key={min}
                         onClick={() => setBreakMinutes(min)}
-                        style={breakMinutes === min ? activeButton : optionButton}
+                        style={
+                          breakMinutes === min ? activeButton : optionButton
+                        }
                       >
                         {min} min
                       </button>
@@ -202,7 +221,7 @@ export default function FocusPage() {
                 </>
               )}
 
-              <button onClick={beginSession} style={beginButton}>
+              <button type="button" onClick={beginSession} style={beginButton}>
                 Begin Session →
               </button>
             </div>
@@ -220,41 +239,46 @@ export default function FocusPage() {
               {String(remainingSeconds).padStart(2, "0")}
             </div>
 
-            <p style={{ color: "rgba(241,232,218,0.55)", marginBottom: "40px" }}>
+            <p
+              style={{
+                color: "rgba(241,232,218,0.58)",
+                margin: "0 0 30px",
+                maxWidth: "320px",
+                lineHeight: 1.7,
+                fontSize: "14px",
+              }}
+            >
               {phase === "focus"
                 ? "Leave everything else outside."
                 : "Step back. Breathe. Then return."}
             </p>
 
-            <div style={{ display: "flex", gap: "18px", marginBottom: "38px" }}>
-              <button onClick={() => setRunning(!running)} style={circleButton}>
+            <div style={controlRow}>
+              <button
+                type="button"
+                onClick={() => setRunning(!running)}
+                style={circleButton}
+              >
                 {running ? "Pause" : "Resume"}
               </button>
 
-              <button onClick={completeSession} style={circleButton}>
+              <button type="button" onClick={completeSession} style={circleButton}>
                 Complete
               </button>
             </div>
 
-            <div style={{ width: "420px", maxWidth: "90vw", display: "grid", gap: "18px" }}>
-              <SoundSlider label="Noise" value={noiseVolume} onChange={setNoiseVolume} />
+            <div style={soundBox}>
+              <SoundSlider
+                label="Noise"
+                value={noiseVolume}
+                onChange={setNoiseVolume}
+              />
 
-              <SoundSlider label="Music" value={musicVolume} onChange={setMusicVolume} />
-
-              <button
-                onClick={toggleMusic}
-                disabled={!musicSrc}
-                style={{
-                  border: "1px solid rgba(241,232,218,0.24)",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(241,232,218,0.78)",
-                  padding: "12px 18px",
-                  cursor: musicSrc ? "pointer" : "not-allowed",
-                }}
-              >
-                {musicSrc ? (musicOn ? "Music On" : "Start Music") : "No Music for Forest"}
-              </button>
+              <SoundSlider
+                label="Music"
+                value={musicVolume}
+                onChange={setMusicVolume}
+              />
             </div>
           </>
         )}
@@ -276,11 +300,13 @@ function SoundSlider({
     <label
       style={{
         display: "grid",
-        gridTemplateColumns: "80px 1fr",
+        gridTemplateColumns: "68px 1fr",
         alignItems: "center",
-        gap: "14px",
-        color: "rgba(241,232,218,0.62)",
+        gap: "12px",
+        color: "rgba(241,232,218,0.68)",
         fontSize: "14px",
+        width: "100%",
+        minHeight: "44px",
       }}
     >
       {label}
@@ -291,33 +317,37 @@ function SoundSlider({
         step="0.01"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: "100%" }}
       />
     </label>
   );
 }
 
 const smallLabel = {
-  letterSpacing: "0.32em",
+  letterSpacing: "0.26em",
   textTransform: "uppercase" as const,
-  color: "rgba(241,232,218,0.48)",
-  marginBottom: "26px",
+  color: "rgba(241,232,218,0.5)",
+  marginBottom: "18px",
+  fontSize: "11px",
 };
 
 const titleStyle = {
   fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "clamp(2.3rem,4vw,4.6rem)",
+  fontSize: "clamp(2rem, 7vw, 4.2rem)",
   fontWeight: 300,
-  margin: "0 0 36px",
+  lineHeight: 1.08,
+  margin: "0 0 28px",
+  maxWidth: "92vw",
 };
 
 const setupBox = {
-  width: "520px",
-  maxWidth: "92vw",
+  width: "100%",
+  maxWidth: "520px",
   borderRadius: "30px",
   border: "1px solid rgba(241,232,218,0.22)",
   background: "rgba(255,255,255,0.05)",
-  backdropFilter: "blur(14px)",
-  padding: "32px",
+  padding: "24px",
+  boxSizing: "border-box" as const,
 };
 
 const rowStyle = {
@@ -328,8 +358,8 @@ const rowStyle = {
 };
 
 const sectionLabel = {
-  margin: "28px 0 14px",
-  letterSpacing: "0.22em",
+  margin: "26px 0 14px",
+  letterSpacing: "0.2em",
   textTransform: "uppercase" as const,
   color: "rgba(241,232,218,0.5)",
   fontSize: "12px",
@@ -339,46 +369,63 @@ const optionButton = {
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.22)",
   background: "rgba(0,0,0,0.16)",
-  color: "rgba(241,232,218,0.7)",
-  padding: "12px 20px",
+  color: "rgba(241,232,218,0.72)",
+  padding: "13px 20px",
+  minHeight: "48px",
+  minWidth: "96px",
   cursor: "pointer",
 };
 
 const activeButton = {
-  borderRadius: "999px",
+  ...optionButton,
   border: "1px solid rgba(241,232,218,0.7)",
   background: "rgba(241,232,218,0.14)",
   color: "rgba(241,232,218,0.92)",
-  padding: "12px 20px",
-  cursor: "pointer",
 };
 
 const beginButton = {
-  marginTop: "34px",
+  marginTop: "32px",
   width: "100%",
   borderRadius: "999px",
-  border: "1px solid rgba(241,232,218,0.32)",
-  background: "rgba(241,232,218,0.08)",
-  color: "rgba(241,232,218,0.9)",
+  border: "1px solid rgba(241,232,218,0.36)",
+  background: "rgba(241,232,218,0.1)",
+  color: "rgba(241,232,218,0.92)",
   padding: "16px",
+  minHeight: "54px",
   cursor: "pointer",
   letterSpacing: "0.12em",
 };
 
 const timerStyle = {
   fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "clamp(5rem,12vw,11rem)",
+  fontSize: "clamp(5rem, 22vw, 11rem)",
   fontWeight: 300,
   lineHeight: 1,
-  marginBottom: "34px",
+  marginBottom: "26px",
+};
+
+const controlRow = {
+  display: "flex",
+  gap: "14px",
+  marginBottom: "32px",
+  justifyContent: "center",
+  width: "100%",
+  maxWidth: "420px",
 };
 
 const circleButton = {
-  width: "118px",
+  width: "min(42vw, 128px)",
   height: "54px",
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.32)",
   background: "rgba(255,255,255,0.06)",
   color: "rgba(241,232,218,0.86)",
   cursor: "pointer",
+};
+
+const soundBox = {
+  width: "100%",
+  maxWidth: "420px",
+  display: "grid",
+  gap: "16px",
 };
