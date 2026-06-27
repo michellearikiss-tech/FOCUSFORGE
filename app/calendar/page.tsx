@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/utils/supabase/client";
 
 type CalendarEvent = {
   id: string;
@@ -80,6 +79,8 @@ export default function CalendarPage() {
   }, [selectedDate, reflections]);
 
   async function loadData() {
+    const { supabase } = await import("@/utils/supabase/client");
+
     const { data } = await supabase.auth.getUser();
 
     if (!data.user) {
@@ -112,6 +113,8 @@ export default function CalendarPage() {
   }
 
   async function addEvent() {
+    const { supabase } = await import("@/utils/supabase/client");
+
     if (!title.trim() || !userId) return;
 
     const { data, error } = await supabase
@@ -141,6 +144,8 @@ export default function CalendarPage() {
   }
 
   async function deleteEvent(id: string) {
+    const { supabase } = await import("@/utils/supabase/client");
+
     const { error } = await supabase.from("events").delete().eq("id", id);
 
     if (error) {
@@ -153,6 +158,8 @@ export default function CalendarPage() {
   }
 
   async function saveReflection() {
+    const { supabase } = await import("@/utils/supabase/client");
+
     if (!userId) return;
 
     const { data, error } = await supabase
