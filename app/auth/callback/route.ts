@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const next = requestUrl.searchParams.get("next") || "/forge";
 
   if (!code) {
     return NextResponse.redirect(
@@ -20,5 +21,5 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.redirect(new URL("/forge", requestUrl.origin));
+  return NextResponse.redirect(new URL(next, requestUrl.origin));
 }
