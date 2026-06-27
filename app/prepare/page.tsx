@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 const backgroundMap: Record<string, string> = {
@@ -17,6 +18,14 @@ const quoteMap: Record<string, string> = {
 };
 
 export default function PreparePage() {
+  return (
+    <Suspense fallback={<main style={{ height: "100svh", background: "#0b0807" }} />}>
+      <PrepareContent />
+    </Suspense>
+  );
+}
+
+function PrepareContent() {
   const searchParams = useSearchParams();
 
   const setting = searchParams.get("space") || "Library";
