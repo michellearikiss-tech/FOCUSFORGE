@@ -1,33 +1,38 @@
 "use client";
 
-import { createClient } from "@/utils/supabase/client";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 export default function LoginPage() {
-  async function signInWithGoogle() {
-    const supabase = createClient();
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "";
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+  const redirectTo = `${origin}/auth/callback`;
 
-    if (error) {
-      alert(error.message);
-    }
-  }
+  const loginUrl =
+    SUPABASE_URL && origin
+      ? `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(
+          redirectTo
+        )}`
+      : "";
 
   return (
     <main style={mainStyle}>
       <div style={cardStyle}>
         <p style={smallLabel}>FocusForge</p>
         <h1 style={titleStyle}>Welcome back</h1>
-        <p style={textStyle}>Sign in to save your tasks, sessions, and streaks.</p>
+        <p style={textStyle}>
+          Sign in to save your tasks, sessions, and streaks.
+        </p>
 
-        <button type="button" onClick={signInWithGoogle} style={buttonStyle}>
-          Continue with Google
-        </button>
+        {loginUrl ? (
+          <a href={loginUrl} style={buttonStyle}>
+            Continue with Google
+          </a>
+        ) : (
+          <p style={{ color: "pink" }}>
+            Missing NEXT_PUBLIC_SUPABASE_URL in Vercel Environment Variables.
+          </p>
+        )}
       </div>
     </main>
   );
@@ -75,12 +80,14 @@ const textStyle = {
 };
 
 const buttonStyle = {
+  display: "block",
   width: "100%",
+  boxSizing: "border-box" as const,
   padding: "16px",
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.38)",
   background: "rgba(241,232,218,0.1)",
   color: "rgba(241,232,218,0.92)",
   fontSize: "16px",
-  cursor: "pointer",
+  textDecoration: "none",
 };
