@@ -1,20 +1,46 @@
-const LOGIN_URL =
-  "https://cdhhqjmaitutflhdxbxq.supabase.co/auth/v1/authorize?provider=google&redirect_to=" +
-  encodeURIComponent("https://focusforge-gke3.vercel.app/auth/callback?next=/forge");
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { createClient } from "@/utils/supabase/server";
 
 export default function LoginPage() {
+  async function signInWithGoogle() {
+    "use server";
+
+    const headerStore = await headers();
+    const origin = headerStore.get("origin") || "https://focusforge-gke3.vercel.app";
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    }
+
+    if (data.url) {
+      redirect(data.url);
+    }
+
+    redirect("/login?error=no-url");
+  }
+
   return (
     <main style={mainStyle}>
       <div style={cardStyle}>
         <p style={smallLabel}>FocusForge</p>
         <h1 style={titleStyle}>Welcome back</h1>
-        <p style={textStyle}>
-          Sign in to save your tasks, sessions, and streaks.
-        </p>
+        <p style={textStyle}>Sign in to save your tasks, sessions, and streaks.</p>
 
-        <a href={LOGIN_URL} style={buttonStyle}>
-          Continue with Google
-        </a>
+        <form action={signInWithGoogle}>
+          <button type="submit" style={buttonStyle}>
+            Continue with Google
+          </button>
+        </form>
       </div>
     </main>
   );
@@ -62,14 +88,12 @@ const textStyle = {
 };
 
 const buttonStyle = {
-  display: "block",
   width: "100%",
-  boxSizing: "border-box" as const,
   padding: "16px",
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.38)",
   background: "rgba(241,232,218,0.1)",
   color: "rgba(241,232,218,0.92)",
   fontSize: "16px",
-  textDecoration: "none",
+  cursor: "pointer",
 };
