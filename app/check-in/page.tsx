@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Environment = {
@@ -17,6 +18,14 @@ const environments: Environment[] = [
 const states = ["Energized", "Steady", "Tired", "Overwhelmed"];
 
 export default function CheckIn() {
+  return (
+    <Suspense fallback={<main style={mainStyle} />}>
+      <CheckInContent />
+    </Suspense>
+  );
+}
+
+function CheckInContent() {
   const searchParams = useSearchParams();
 
   const space = searchParams.get("space") || "Library";
