@@ -1,26 +1,8 @@
-"use client";
-
-import { createClient } from "@/utils/supabase/client";
-
-const REDIRECT_TO =
-  "https://focusforge-gke3.vercel.app/auth/callback?next=/forge";
+const LOGIN_URL =
+  "https://cdhhqjmaitutflhdxbxq.supabase.co/auth/v1/authorize?provider=google&redirect_to=" +
+  encodeURIComponent("https://focusforge-gke3.vercel.app/auth/callback?next=/forge");
 
 export default function LoginPage() {
-  async function signInWithGoogle() {
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: REDIRECT_TO,
-      },
-    });
-
-    if (error) {
-      alert(error.message);
-    }
-  }
-
   return (
     <main style={mainStyle}>
       <div style={cardStyle}>
@@ -30,9 +12,9 @@ export default function LoginPage() {
           Sign in to save your tasks, sessions, and streaks.
         </p>
 
-        <button type="button" onClick={signInWithGoogle} style={buttonStyle}>
+        <a href={LOGIN_URL} style={buttonStyle}>
           Continue with Google
-        </button>
+        </a>
       </div>
     </main>
   );
@@ -80,12 +62,14 @@ const textStyle = {
 };
 
 const buttonStyle = {
+  display: "block",
   width: "100%",
+  boxSizing: "border-box" as const,
   padding: "16px",
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.38)",
   background: "rgba(241,232,218,0.1)",
   color: "rgba(241,232,218,0.92)",
   fontSize: "16px",
-  cursor: "pointer",
+  textDecoration: "none",
 };
