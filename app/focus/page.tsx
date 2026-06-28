@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAudio } from "../context/AudioContext";
 import { supabase } from "@/utils/supabase/client";
 
@@ -19,8 +19,14 @@ const sceneMap: Record<string, "library" | "rain" | "forest" | "stars"> = {
 };
 
 export default function FocusPage() {
-  const { changeNoise, noiseVolume, setNoiseVolume } = useAudio();
-  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const {
+    startSounds,
+    noiseVolume,
+    musicVolume,
+    setNoiseVolume,
+    setMusicVolume,
+    stopSounds,
+  } = useAudio();
 
   const [userId, setUserId] = useState("");
   const [task, setTask] = useState("Deep Work Session");
@@ -35,7 +41,7 @@ export default function FocusPage() {
   const [phase, setPhase] = useState<"focus" | "break">("focus");
   const [seconds, setSeconds] = useState(25 * 60);
 
-  const [musicVolume, setMusicVolume] = useState(0.25);
+
 
   useEffect(() => {
     async function loadUser() {
@@ -50,8 +56,8 @@ export default function FocusPage() {
 
     setTask(savedTask);
     setSetting(savedSetting);
-    changeNoise(sceneMap[savedSetting] || "library");
-  }, [changeNoise]);
+  
+  }, []);
 
   useEffect(() => {
     if (!started || !running) return;
@@ -82,7 +88,8 @@ export default function FocusPage() {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
-  function beginSession() {
+  async function beginSession() {
+    await startSounds(sceneMap[setting] || "library");
     setStarted(true);
     setRunning(true);
     setPhase("focus");
@@ -90,6 +97,8 @@ export default function FocusPage() {
   }
 
   async function completeSession() {
+    stopSounds();
+
     if (!userId) {
       window.location.href = "/complete";
       return;
@@ -274,11 +283,11 @@ export default function FocusPage() {
                 onChange={setNoiseVolume}
               />
 
-              <SoundSlider
-                label="Music"
-                value={musicVolume}
-                onChange={setMusicVolume}
-              />
+<SoundSlider
+  label="Music"
+  value={musicVolume}
+  onChange={setMusicVolume}
+/>
             </div>
           </>
         )}

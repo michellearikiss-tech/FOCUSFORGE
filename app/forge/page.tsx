@@ -166,11 +166,15 @@ export default function ForgePage() {
 
     const { task, column } = selectedTask;
 
+    const completedTime = new Date().toISOString();
+
     const { error } = await supabase
       .from("tasks")
-      .update({ done: true })
+      .update({
+        done: true,
+        completed_at: completedTime,
+      })
       .eq("id", task.id);
-
     if (error) {
       setMessage(`Could not complete task: ${error.message}`);
       return;
@@ -179,10 +183,15 @@ export default function ForgePage() {
     setTasks((prev) => ({
       ...prev,
       [column]: prev[column].map((item) =>
-        item.id === task.id ? { ...item, done: true } : item
+        item.id === task.id
+          ? {
+              ...item,
+              done: true,
+              completed_at: completedTime,
+            }
+          : item
       ),
     }));
-
     setSelectedTask(null);
   }
 

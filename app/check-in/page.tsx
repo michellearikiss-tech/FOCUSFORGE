@@ -102,9 +102,16 @@ function CheckInContent() {
           </div>
         </div>
 
-        <a href={prepareHref()} style={enterButton}>
-          Enter Focus →
-        </a>
+        <a
+  href={prepareHref()}
+  onClick={() => {
+    localStorage.setItem("focusSetting", space);
+    localStorage.setItem("focusState", state);
+  }}
+  style={enterButton}
+>
+  Enter Focus →
+</a>
 
         <div style={brandStyle}>FocusForge</div>
       </div>
