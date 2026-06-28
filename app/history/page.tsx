@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/utils/supabase/client";
 
 type StudySession = {
@@ -43,7 +43,7 @@ export default function HistoryPage() {
       .select("*")
       .eq("user_id", userData.user.id)
       .order("completed_at", { ascending: false })
-      .limit(180);
+      .limit(160);
 
     if (error) {
       console.error("Load sessions error:", error);
@@ -56,20 +56,20 @@ export default function HistoryPage() {
     setLoading(false);
   }
 
-  const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions]);
-  const monthlyDays = useMemo(() => getCurrentMonthDays(), []);
-  const monthlyStats = useMemo(() => getMonthlyStats(sessions), [sessions]);
+  const totalMinutes = sessions.reduce(
+    (sum, session) => sum + session.duration_minutes,
+    0
+  );
 
+  const groupedSessions = groupSessionsByDate(sessions);
+  const monthlyDays = getCurrentMonthDays();
+  const monthlyStats = getMonthlyStats(sessions);
   const selectedSessions = groupedSessions[selectedDate] || [];
   const selectedMinutes = selectedSessions.reduce(
     (sum, session) => sum + session.duration_minutes,
     0
   );
 
-  const totalMinutes = sessions.reduce(
-    (sum, session) => sum + session.duration_minutes,
-    0
-  );
   const focusDays = Object.keys(groupedSessions).length;
   const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
 
@@ -95,147 +95,150 @@ export default function HistoryPage() {
           </nav>
         </header>
 
-        <section className="rhythm-card glass">
-          <div className="card-top">
-            <div>
-              <p className="small-caps">Monthly Rhythm</p>
-              <h2>
-                {new Date().toLocaleString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </h2>
+        <section className="history-layout">
+          <section className="rhythm-card glass">
+            <div className="card-top">
+              <div>
+                <p className="small-caps">Monthly Rhythm</p>
+                <h2>
+                  {new Date().toLocaleString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </h2>
+              </div>
+
+              <p className="hint">Tap a day to read that page.</p>
             </div>
 
-            <p className="hint">Tap a day to read that page.</p>
-          </div>
-
-          <div className="week-row">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <span key={day}>{day}</span>
-            ))}
-          </div>
-
-          <div className="heatmap">
-            {monthlyDays.map((day) => {
-              const dateString = formatDate(day);
-              const stats = monthlyStats[dateString] || {
-                minutes: 0,
-                sessions: 0,
-              };
-
-              const isToday = dateString === getToday();
-              const isSelected = dateString === selectedDate;
-              const isHovered = hoveredDay === dateString;
-
-              return (
-                <button
-                  key={dateString}
-                  className={`heat-cell ${isToday ? "today" : ""} ${
-                    isSelected ? "selected" : ""
-                  }`}
-                  style={getHeatmapColor(stats.minutes)}
-                  onMouseEnter={() => setHoveredDay(dateString)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                  onClick={() => setSelectedDate(dateString)}
-                >
-                  <span className="day-number">{day.getDate()}</span>
-
-                  {stats.minutes > 0 && (
-                    <span className="day-minutes">{stats.minutes}m</span>
-                  )}
-
-                  {isHovered && (
-                    <div className="tooltip">
-                      <p>{formatShortDate(day)}</p>
-                      <span>{stats.minutes} minutes</span>
-                      <span>
-                        {stats.sessions}{" "}
-                        {stats.sessions === 1 ? "session" : "sessions"}
-                      </span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="legend">
-            <span>Less</span>
-            <i style={getHeatmapColor(0)} />
-            <i style={getHeatmapColor(30)} />
-            <i style={getHeatmapColor(95)} />
-            <i style={getHeatmapColor(130)} />
-            <span>More</span>
-          </div>
-        </section>
-
-        <section className="journey-card glass">
-          <div className="journey-copy">
-            <p className="small-caps">Your Journey</p>
-            <h2>Your Journey</h2>
-            <p>You are continuing the story.</p>
-          </div>
-
-          <div className="summary">
-            <div>
-              <strong>{sessions.length}</strong>
-              <span>Sessions</span>
-            </div>
-
-            <div>
-              <strong>{totalHours}</strong>
-              <span>Hours</span>
-            </div>
-
-            <div>
-              <strong>{focusDays}</strong>
-              <span>Days</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="sessions-card glass">
-          <div className="sessions-top">
-            <div>
-              <p className="small-caps">Selected Day</p>
-              <h2>{formatDateLabel(selectedDate)}</h2>
-            </div>
-
-            <div className="selected-total">
-              <strong>{selectedMinutes}</strong>
-              <span>min</span>
-            </div>
-          </div>
-
-          {loading ? (
-            <p className="muted">Loading your journey...</p>
-          ) : selectedSessions.length === 0 ? (
-            <div className="empty-state">
-              <p>No focus sessions recorded on this day yet.</p>
-
-              {selectedDate === getToday() && (
-                <a href="/check-in">Begin Today</a>
+            <div className="week-row">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                (day) => (
+                  <span key={day}>{day}</span>
+                )
               )}
             </div>
-          ) : (
-            <div className="session-list">
-              {selectedSessions.map((session) => (
-                <article key={session.id} className="session-row">
-                  <div className="session-left">
-                    <p className="scene">
-                      {getSceneIcon(session.scene || session.space)}{" "}
-                      {formatScene(session.scene || session.space)}
-                    </p>
-                    <h3>{session.task_name || "Deep Work Session"}</h3>
-                    <span>{formatTime(session.completed_at)}</span>
-                  </div>
 
-                  <p className="duration">{session.duration_minutes} min</p>
-                </article>
-              ))}
+            <div className="heatmap">
+              {monthlyDays.map((day) => {
+                const dateString = formatDate(day);
+                const stats = monthlyStats[dateString] || {
+                  minutes: 0,
+                  sessions: 0,
+                };
+                const isToday = dateString === getToday();
+                const isSelected = dateString === selectedDate;
+                const isHovered = hoveredDay === dateString;
+
+                return (
+                  <button
+                    key={dateString}
+                    className={`heat-cell ${isToday ? "today" : ""} ${
+                      isSelected ? "selected" : ""
+                    }`}
+                    style={getHeatmapColor(stats.minutes)}
+                    onMouseEnter={() => setHoveredDay(dateString)}
+                    onMouseLeave={() => setHoveredDay(null)}
+                    onClick={() => setSelectedDate(dateString)}
+                  >
+                    <span className="day-number">{day.getDate()}</span>
+                    {stats.minutes > 0 && (
+                      <span className="day-minutes">{stats.minutes}m</span>
+                    )}
+
+                    {isHovered && (
+                      <div className="tooltip">
+                        <p>{formatShortDate(day)}</p>
+                        <span>{stats.minutes} minutes</span>
+                        <span>
+                          {stats.sessions}{" "}
+                          {stats.sessions === 1 ? "session" : "sessions"}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
+
+            <div className="legend">
+              <span>Less</span>
+              <i style={getHeatmapColor(0)} />
+              <i style={getHeatmapColor(30)} />
+              <i style={getHeatmapColor(90)} />
+              <i style={getHeatmapColor(120)} />
+              <span>More</span>
+            </div>
+          </section>
+
+          <aside className="side-column">
+            <section className="journey-card glass">
+              <div>
+                <p className="small-caps">Your Journey</p>
+                <h2>Your Journey</h2>
+                <p>You are continuing the story.</p>
+              </div>
+
+              <div className="summary">
+                <div>
+                  <strong>{sessions.length}</strong>
+                  <span>Sessions</span>
+                </div>
+                <div>
+                  <strong>{totalHours}</strong>
+                  <span>Hours</span>
+                </div>
+                <div>
+                  <strong>{focusDays}</strong>
+                  <span>Days</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="sessions-card glass">
+              <div className="sessions-top">
+                <div>
+                  <p className="small-caps">Selected Day</p>
+                  <h2>{formatDateLabel(selectedDate)}</h2>
+                </div>
+
+                <div className="selected-total">
+                  <strong>{selectedMinutes}</strong>
+                  <span>min</span>
+                </div>
+              </div>
+
+              {loading ? (
+                <p className="muted">Loading your journey...</p>
+              ) : selectedSessions.length === 0 ? (
+                <div className="empty-state">
+                  <p>No focus sessions recorded on this day yet.</p>
+                  {selectedDate === getToday() && <a href="/check-in">Begin Today</a>}
+                </div>
+              ) : (
+                <div className="session-list">
+                  {selectedSessions.map((session) => (
+                    <article key={session.id} className="session-row">
+                      <div className="session-main">
+                        <div className="session-top-line">
+                          <h3>{session.task_name || "Deep Work Session"}</h3>
+                          <p>{session.duration_minutes}m</p>
+                        </div>
+
+                        <div className="session-meta">
+                          <span>{formatTime(session.completed_at)}</span>
+                          <span>
+                            {getSceneIcon(session.scene || session.space)} {" "}
+                            {formatScene(session.scene || session.space)}
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </aside>
         </section>
       </div>
 
@@ -244,7 +247,7 @@ export default function HistoryPage() {
           position: relative;
           min-height: 100vh;
           overflow-x: hidden;
-          color: rgba(241, 232, 218, 0.92);
+          color: rgba(241, 232, 218, 0.9);
           font-family: Cormorant Garamond, Georgia, serif;
         }
 
@@ -271,24 +274,22 @@ export default function HistoryPage() {
         .content {
           position: relative;
           z-index: 10;
-          width: min(1120px, calc(100% - 44px));
+          width: min(1220px, calc(100% - 54px));
           margin: 0 auto;
-          padding: 32px 0 72px;
-          display: grid;
-          gap: 18px;
+          padding: 34px 0 72px;
         }
 
         .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          gap: 20px;
+          margin-bottom: 24px;
         }
 
         .header h1 {
           margin: 8px 0 0;
-          font-size: clamp(2.7rem, 8vw, 4.2rem);
-          line-height: 0.95;
+          font-size: clamp(3rem, 6vw, 5rem);
+          line-height: 0.92;
           font-weight: 300;
           color: rgba(241, 232, 218, 0.92);
         }
@@ -296,38 +297,52 @@ export default function HistoryPage() {
         .label,
         .small-caps {
           margin: 0;
-          letter-spacing: 0.22em;
+          letter-spacing: 0.24em;
           text-transform: uppercase;
           font-size: 11px;
-          color: rgba(241, 232, 218, 0.5);
+          color: rgba(241, 232, 218, 0.48);
         }
 
         .nav {
           display: flex;
-          gap: 18px;
-          flex-wrap: wrap;
+          gap: 22px;
+          padding-top: 4px;
         }
 
         .nav a {
           color: rgba(241, 232, 218, 0.76);
           text-decoration: none;
-          font-size: 15px;
+          font-size: 16px;
         }
 
         .glass {
-          border: 1px solid rgba(241, 232, 218, 0.16);
-          background: rgba(10, 8, 6, 0.32);
+          border: 1px solid rgba(241, 232, 218, 0.15);
+          background: rgba(10, 8, 6, 0.31);
           backdrop-filter: blur(16px);
           box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
-          box-sizing: border-box;
         }
 
-        .rhythm-card {
+        .history-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 360px;
+          gap: 24px;
+          align-items: start;
+        }
+
+        .rhythm-card,
+        .journey-card,
+        .sessions-card {
           border-radius: 30px;
           padding: 24px;
         }
 
-        .card-top {
+        .side-column {
+          display: grid;
+          gap: 20px;
+        }
+
+        .card-top,
+        .sessions-top {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
@@ -337,7 +352,7 @@ export default function HistoryPage() {
 
         .card-top h2,
         .sessions-top h2,
-        .journey-copy h2 {
+        .journey-card h2 {
           margin: 8px 0 0;
           line-height: 0.95;
           font-weight: 300;
@@ -345,45 +360,60 @@ export default function HistoryPage() {
         }
 
         .card-top h2 {
-          font-size: clamp(2.2rem, 5vw, 3.35rem);
+          font-size: clamp(2.7rem, 4.6vw, 4.1rem);
+        }
+
+        .sessions-top h2 {
+          font-size: 2.4rem;
+        }
+
+        .journey-card h2 {
+          font-size: 2.45rem;
+        }
+
+        .journey-card p:last-child {
+          margin: 8px 0 0;
+          font-size: 1.05rem;
+          font-style: italic;
+          color: rgba(241, 232, 218, 0.6);
         }
 
         .hint {
           margin: 8px 0 0;
           font-size: 14px;
           font-style: italic;
-          color: rgba(241, 232, 218, 0.52);
+          color: rgba(241, 232, 218, 0.5);
           text-align: right;
         }
 
         .week-row {
           display: grid;
-          grid-template-columns: repeat(7, minmax(0, 1fr));
+          grid-template-columns: repeat(7, 1fr);
           gap: 8px;
           margin-bottom: 8px;
         }
 
         .week-row span {
           text-align: center;
-          font-size: 12px;
-          color: rgba(241, 232, 218, 0.52);
+          font-size: 13px;
+          color: rgba(241, 232, 218, 0.5);
         }
 
         .heatmap {
           display: grid;
-          grid-template-columns: repeat(7, minmax(0, 1fr));
+          grid-template-columns: repeat(7, 1fr);
           gap: 8px;
         }
 
         .heat-cell {
           position: relative;
-          aspect-ratio: 1 / 0.82;
-          min-width: 0;
-          border-radius: 15px;
+          aspect-ratio: 1 / 0.78;
+          min-height: 84px;
+          border-radius: 16px;
           cursor: pointer;
           color: rgba(241, 232, 218, 0.86);
           font-family: inherit;
-          padding: 8px;
+          padding: 9px;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -397,17 +427,17 @@ export default function HistoryPage() {
         }
 
         .heat-cell.today {
-          outline: 1px solid rgba(241, 232, 218, 0.58);
+          outline: 1px solid rgba(241, 232, 218, 0.52);
           outline-offset: 3px;
         }
 
         .heat-cell.selected {
-          box-shadow: 0 0 0 2px rgba(241, 232, 218, 0.76),
+          box-shadow: 0 0 0 2px rgba(241, 232, 218, 0.74),
             0 16px 32px rgba(0, 0, 0, 0.18);
         }
 
         .day-number {
-          font-size: 14px;
+          font-size: 15px;
         }
 
         .day-minutes {
@@ -450,54 +480,35 @@ export default function HistoryPage() {
           justify-content: flex-end;
           gap: 7px;
           margin-top: 16px;
-          color: rgba(241, 232, 218, 0.46);
-          font-size: 11px;
+          color: rgba(241, 232, 218, 0.44);
+          font-size: 12px;
         }
 
         .legend i {
-          width: 13px;
-          height: 13px;
+          width: 15px;
+          height: 15px;
           display: inline-block;
-          border-radius: 4px;
-        }
-
-        .journey-card {
-          border-radius: 26px;
-          padding: 20px 24px;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 20px;
-          align-items: center;
-        }
-
-        .journey-copy h2 {
-          font-size: clamp(2rem, 4vw, 2.9rem);
-        }
-
-        .journey-copy p:last-child {
-          margin: 8px 0 0;
-          font-size: 1.05rem;
-          font-style: italic;
-          color: rgba(241, 232, 218, 0.62);
+          border-radius: 5px;
         }
 
         .summary {
-          display: flex;
-          gap: 10px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 9px;
+          margin-top: 16px;
         }
 
         .summary div {
-          min-width: 86px;
-          border: 1px solid rgba(241, 232, 218, 0.13);
-          border-radius: 18px;
+          border: 1px solid rgba(241, 232, 218, 0.12);
+          border-radius: 17px;
           background: rgba(255, 255, 255, 0.04);
-          padding: 11px 12px;
+          padding: 10px 6px;
           text-align: center;
         }
 
         .summary strong {
           display: block;
-          font-size: 1.45rem;
+          font-size: 1.35rem;
           line-height: 1;
           font-weight: 300;
           color: rgba(241, 232, 218, 0.88);
@@ -506,35 +517,18 @@ export default function HistoryPage() {
         .summary span {
           display: block;
           margin-top: 6px;
-          letter-spacing: 0.14em;
+          letter-spacing: 0.13em;
           text-transform: uppercase;
-          font-size: 10px;
-          color: rgba(241, 232, 218, 0.44);
-        }
-
-        .sessions-card {
-          border-radius: 30px;
-          padding: 24px;
-        }
-
-        .sessions-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 20px;
-          margin-bottom: 16px;
-        }
-
-        .sessions-top h2 {
-          font-size: clamp(2rem, 4vw, 3rem);
+          font-size: 9px;
+          color: rgba(241, 232, 218, 0.42);
         }
 
         .selected-total {
-          border: 1px solid rgba(241, 232, 218, 0.13);
+          border: 1px solid rgba(241, 232, 218, 0.12);
           border-radius: 18px;
           background: rgba(255, 255, 255, 0.04);
-          padding: 10px 14px;
-          min-width: 72px;
+          padding: 10px 13px;
+          min-width: 68px;
           text-align: center;
         }
 
@@ -549,34 +543,26 @@ export default function HistoryPage() {
           display: block;
           margin-top: 5px;
           font-size: 11px;
-          color: rgba(241, 232, 218, 0.44);
+          color: rgba(241, 232, 218, 0.42);
         }
 
         .session-list {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
+          gap: 8px;
         }
 
         .session-row {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          align-items: center;
-          gap: 12px;
           border: 1px solid rgba(241, 232, 218, 0.1);
           background: rgba(255, 255, 255, 0.04);
-          border-radius: 17px;
-          padding: 10px 13px;
+          border-radius: 16px;
+          padding: 10px 12px;
         }
 
-        .session-left {
-          min-width: 0;
-        }
-
-        .scene {
-          margin: 0 0 3px;
-          font-size: 12px;
-          color: rgba(241, 232, 218, 0.48);
+        .session-top-line {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: baseline;
         }
 
         .session-row h3 {
@@ -590,18 +576,20 @@ export default function HistoryPage() {
           text-overflow: ellipsis;
         }
 
-        .session-row span {
-          display: block;
-          margin-top: 3px;
-          font-size: 12px;
-          color: rgba(241, 232, 218, 0.42);
-        }
-
-        .duration {
+        .session-top-line p {
           margin: 0;
-          font-size: 14px;
+          font-size: 13px;
           color: rgba(241, 232, 218, 0.68);
           white-space: nowrap;
+        }
+
+        .session-meta {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 5px;
+          font-size: 12px;
+          color: rgba(241, 232, 218, 0.46);
         }
 
         .muted {
@@ -635,33 +623,65 @@ export default function HistoryPage() {
           .content {
             width: min(100% - 28px, 580px);
             padding: 24px 0 60px;
-            gap: 16px;
           }
 
           .header {
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
+            margin-bottom: 18px;
           }
 
           .header h1 {
-            display: none;
+            font-size: 3.2rem;
           }
 
           .nav {
             gap: 16px;
           }
 
+          .history-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+
+          .side-column {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+
           .rhythm-card,
-          .journey-card,
-          .sessions-card {
+          .sessions-card,
+          .journey-card {
             border-radius: 24px;
             padding: 17px;
+          }
+
+          .rhythm-card {
+            order: 1;
+          }
+
+          .side-column {
+            order: 2;
+          }
+
+          .journey-card {
+            order: 1;
+          }
+
+          .sessions-card {
+            order: 2;
+          }
+
+          .card-top,
+          .sessions-top {
+            margin-bottom: 14px;
           }
 
           .card-top {
             flex-direction: column;
             gap: 4px;
-            margin-bottom: 14px;
           }
 
           .hint {
@@ -673,34 +693,12 @@ export default function HistoryPage() {
             font-size: 2.15rem;
           }
 
-          .journey-card {
-            grid-template-columns: 1fr;
-            gap: 14px;
-            padding: 17px;
+          .journey-card h2 {
+            font-size: 2.15rem;
           }
 
-          .journey-copy h2 {
-            font-size: 2rem;
-          }
-
-          .journey-copy p:last-child {
+          .journey-card p:last-child {
             font-size: 1rem;
-          }
-
-          .summary {
-            width: 100%;
-            gap: 8px;
-          }
-
-          .summary div {
-            flex: 1;
-            min-width: 0;
-            padding: 10px 8px;
-            border-radius: 17px;
-          }
-
-          .summary strong {
-            font-size: 1.25rem;
           }
 
           .heatmap {
@@ -712,11 +710,12 @@ export default function HistoryPage() {
           }
 
           .week-row span {
-            font-size: 11px;
+            font-size: 12px;
           }
 
           .heat-cell {
             aspect-ratio: 1 / 1;
+            min-height: 0;
             border-radius: 11px;
             padding: 6px;
           }
@@ -733,18 +732,9 @@ export default function HistoryPage() {
             display: none;
           }
 
-          .session-list {
-            grid-template-columns: 1fr;
-            gap: 9px;
-          }
-
           .session-row {
             padding: 9px 11px;
             border-radius: 15px;
-          }
-
-          .session-row h3 {
-            font-size: 0.95rem;
           }
         }
 
@@ -753,16 +743,13 @@ export default function HistoryPage() {
             width: min(100% - 22px, 420px);
           }
 
-          .label {
-            font-size: 10px;
-          }
-
           .nav a {
             font-size: 14px;
           }
 
           .card-top h2,
-          .sessions-top h2 {
+          .sessions-top h2,
+          .journey-card h2 {
             font-size: 2rem;
           }
 
@@ -859,7 +846,6 @@ function formatShortDate(date: Date) {
 function formatDateLabel(dateString: string) {
   const today = new Date();
   const date = new Date(dateString + "T00:00:00");
-
   const todayString = today.toISOString().split("T")[0];
 
   const yesterday = new Date(today);
