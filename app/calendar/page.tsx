@@ -242,15 +242,17 @@ export default function CalendarPage() {
   const nextBigEvent = highlightEvents[0];
   const laterEvents = highlightEvents.slice(1, 4);
   const countdownSection = (
-    <aside style={countdownCardStyle}>
+    <aside style={isMobile ? mobileCountdownCardStyle : countdownCardStyle}>
       <p style={smallCapsStyle}>Coming Up</p>
-      <h2 style={sideTitleStyle}>Countdown</h2>
+      <h2 style={isMobile ? mobileCountdownTitleStyle : sideTitleStyle}>
+        Countdown
+      </h2>
 
       {!nextBigEvent ? (
         <p style={mutedStyle}>No upcoming tests or deadlines.</p>
       ) : (
         <>
-          <div style={heroEventStyle}>
+          <div style={isMobile ? mobileHeroEventStyle : heroEventStyle}>
             <p style={smallCapsStyle}>Next</p>
 
             <h3 style={isMobile ? mobileHeroEventTitleStyle : heroEventTitleStyle}>
@@ -279,7 +281,7 @@ export default function CalendarPage() {
           </div>
 
           {laterEvents.length > 0 && (
-            <div style={timelineStyle}>
+            <div style={isMobile ? mobileTimelineStyle : timelineStyle}>
               <p style={smallCapsStyle}>Later</p>
 
               {laterEvents.map((event) => (
@@ -418,11 +420,8 @@ export default function CalendarPage() {
               {!isMobile && isHovered && (
                 <div style={calendarTooltipStyle}>
                   <p style={tooltipTitleStyle}>{formatPrettyDate(dateString)}</p>
-
                   <p style={tooltipTextStyle}>Focus: {focusInfo.minutes} min</p>
-
                   <p style={tooltipTextStyle}>Sessions: {focusInfo.sessions}</p>
-
                   <p style={tooltipTextStyle}>
                     Mood:{" "}
                     {mood ? `${mood.emoji} ${mood.label}` : "Not recorded"}
@@ -433,61 +432,6 @@ export default function CalendarPage() {
           );
         })}
       </div>
-    </section>
-  );
-
-  const formSection = (
-    <section style={formCardStyle}>
-      <p style={smallCapsStyle}>Add a Moment</p>
-      <h2 style={sideTitleStyle}>New Event</h2>
-
-      <label style={fieldLabelStyle}>Date</label>
-      <input
-        type="date"
-        value={selectedDate}
-        onChange={(e) => setSelectedDate(e.target.value)}
-        style={inputStyle}
-      />
-
-      <label style={fieldLabelStyle}>Title</label>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Math test"
-        style={inputStyle}
-      />
-
-      <label style={fieldLabelStyle}>Time</label>
-      <input
-        value={eventTime}
-        onChange={(e) => setEventTime(e.target.value)}
-        placeholder="18:00"
-        style={inputStyle}
-      />
-
-      <label style={fieldLabelStyle}>Type</label>
-      <select
-        value={eventType}
-        onChange={(e) => setEventType(e.target.value)}
-        style={inputStyle}
-      >
-        <option value="test">Test</option>
-        <option value="deadline">Deadline</option>
-        <option value="study">Study</option>
-        <option value="event">Event</option>
-      </select>
-
-      <label style={fieldLabelStyle}>Notes</label>
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Unit 5 review"
-        style={textareaStyle}
-      />
-
-      <button onClick={addEvent} style={buttonStyle}>
-        Save Event
-      </button>
     </section>
   );
   const selectedDaySection = (
@@ -528,18 +472,17 @@ export default function CalendarPage() {
           )}
         </div>
 
-        <div style={journalBoxStyle}>
+        <div style={isMobile ? mobileJournalBoxStyle : journalBoxStyle}>
           <p style={smallCapsStyle}>Daily Journal</p>
-
           <p style={journalPromptStyle}>How did this day feel?</p>
 
-          <div style={moodGridStyle}>
+          <div style={isMobile ? mobileMoodGridStyle : moodGridStyle}>
             {moods.map((mood) => (
               <button
                 key={mood.label}
                 onClick={() => setSelectedMood(mood.label)}
                 style={{
-                  ...moodButtonStyle,
+                  ...(isMobile ? mobileMoodButtonStyle : moodButtonStyle),
                   ...(selectedMood === mood.label ? activeMoodButtonStyle : {}),
                 }}
               >
@@ -553,7 +496,7 @@ export default function CalendarPage() {
             value={journalNote}
             onChange={(e) => setJournalNote(e.target.value)}
             placeholder="Write a few lines about today..."
-            style={journalTextareaStyle}
+            style={isMobile ? mobileJournalTextareaStyle : journalTextareaStyle}
           />
 
           <button onClick={saveReflection} style={buttonStyle}>
@@ -564,6 +507,60 @@ export default function CalendarPage() {
     </section>
   );
 
+  const formSection = (
+    <section style={isMobile ? mobileFormCardStyle : formCardStyle}>
+      <p style={smallCapsStyle}>Add a Moment</p>
+      <h2 style={isMobile ? mobileFormTitleStyle : sideTitleStyle}>New Event</h2>
+
+      <label style={fieldLabelStyle}>Date</label>
+      <input
+        type="date"
+        value={selectedDate}
+        onChange={(e) => setSelectedDate(e.target.value)}
+        style={isMobile ? mobileInputStyle : inputStyle}
+      />
+
+      <label style={fieldLabelStyle}>Title</label>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Math test"
+        style={isMobile ? mobileInputStyle : inputStyle}
+      />
+
+      <label style={fieldLabelStyle}>Time</label>
+      <input
+        value={eventTime}
+        onChange={(e) => setEventTime(e.target.value)}
+        placeholder="18:00"
+        style={isMobile ? mobileInputStyle : inputStyle}
+      />
+
+      <label style={fieldLabelStyle}>Type</label>
+      <select
+        value={eventType}
+        onChange={(e) => setEventType(e.target.value)}
+        style={isMobile ? mobileInputStyle : inputStyle}
+      >
+        <option value="test">Test</option>
+        <option value="deadline">Deadline</option>
+        <option value="study">Study</option>
+        <option value="event">Event</option>
+      </select>
+
+      <label style={fieldLabelStyle}>Notes</label>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Unit 5 review"
+        style={isMobile ? mobileTextareaStyle : textareaStyle}
+      />
+
+      <button onClick={addEvent} style={buttonStyle}>
+        Save Event
+      </button>
+    </section>
+  );
   return (
     <main style={pageStyle}>
       <div
@@ -594,14 +591,14 @@ export default function CalendarPage() {
             <h1 style={titleStyle}>Important Days</h1>
           </div>
 
-          <nav style={navStyle}>
-            <a href="/" style={linkStyle}>
+          <nav style={isMobile ? mobileNavStyle : navStyle}>
+            <a href="/" style={isMobile ? mobileLinkStyle : linkStyle}>
               Home
             </a>
-            <a href="/forge" style={linkStyle}>
+            <a href="/forge" style={isMobile ? mobileLinkStyle : linkStyle}>
               Forge
             </a>
-            <a href="/history" style={linkStyle}>
+            <a href="/history" style={isMobile ? mobileLinkStyle : linkStyle}>
               History
             </a>
           </nav>
@@ -611,8 +608,8 @@ export default function CalendarPage() {
           <section style={mobileStackStyle}>
             {countdownSection}
             {calendarSection}
-            {formSection}
             {selectedDaySection}
+            {formSection}
           </section>
         ) : (
           <>
@@ -746,8 +743,8 @@ const headerStyle = {
 const mobileHeaderStyle = {
   display: "flex",
   flexDirection: "column" as const,
-  gap: "16px",
-  marginBottom: "24px",
+  gap: "14px",
+  marginBottom: "22px",
 };
 
 const labelStyle = {
@@ -755,12 +752,12 @@ const labelStyle = {
   letterSpacing: "0.32em",
   textTransform: "uppercase" as const,
   fontSize: "12px",
-  color: "rgba(241,232,218,0.42)",
+  color: "rgba(241,232,218,0.48)",
 };
 
 const titleStyle = {
   margin: "8px 0 0",
-  fontSize: "clamp(2.6rem, 9vw, 4rem)",
+  fontSize: "clamp(2.55rem, 13vw, 4rem)",
   fontWeight: 300,
   lineHeight: 1,
   color: "rgba(241,232,218,0.9)",
@@ -769,6 +766,11 @@ const titleStyle = {
 const navStyle = {
   display: "flex",
   gap: "18px",
+};
+
+const mobileNavStyle = {
+  display: "flex",
+  gap: "24px",
   flexWrap: "wrap" as const,
 };
 
@@ -776,6 +778,13 @@ const linkStyle = {
   color: "rgba(241,232,218,0.62)",
   textDecoration: "none",
   fontSize: "15px",
+};
+
+const mobileLinkStyle = {
+  color: "rgba(241,232,218,0.9)",
+  textDecoration: "none",
+  fontSize: "17px",
+  fontWeight: 500,
 };
 
 const topGridStyle = {
@@ -796,7 +805,7 @@ const bottomGridStyle = {
 
 const mobileStackStyle = {
   display: "grid",
-  gap: "18px",
+  gap: "16px",
   width: "100%",
 };
 
@@ -814,6 +823,16 @@ const calendarCardStyle = { ...glassCardStyle };
 const countdownCardStyle = { ...glassCardStyle };
 const formCardStyle = { ...glassCardStyle };
 const selectedCardStyle = { ...glassCardStyle };
+
+const mobileCountdownCardStyle = {
+  ...glassCardStyle,
+  padding: "18px",
+};
+
+const mobileFormCardStyle = {
+  ...glassCardStyle,
+  padding: "18px",
+};
 
 const monthHeaderStyle = {
   display: "flex",
@@ -928,7 +947,6 @@ const mobileMoodEmojiStyle = {
   fontSize: "12px",
   opacity: 0.9,
 };
-
 const dayEventsStyle = {
   display: "grid",
   gap: "4px",
@@ -1018,13 +1036,30 @@ const sideTitleStyle = {
   color: "rgba(241,232,218,0.88)",
 };
 
+const mobileCountdownTitleStyle = {
+  margin: "6px 0 12px",
+  fontSize: "1.75rem",
+  fontWeight: 300,
+  color: "rgba(241,232,218,0.88)",
+};
+
+const mobileFormTitleStyle = {
+  margin: "6px 0 14px",
+  fontSize: "1.7rem",
+  fontWeight: 300,
+};
+
 const heroEventStyle = {
   borderRadius: "24px",
   border: "1px solid rgba(241,232,218,0.14)",
   background: "rgba(255,255,255,0.04)",
   padding: "22px",
-  minWidth: 0,
-  boxSizing: "border-box" as const,
+};
+
+const mobileHeroEventStyle = {
+  ...heroEventStyle,
+  borderRadius: "18px",
+  padding: "14px",
 };
 
 const heroEventTitleStyle = {
@@ -1032,23 +1067,23 @@ const heroEventTitleStyle = {
   fontWeight: 300,
   margin: "0 0 12px",
   lineHeight: 1,
-  overflowWrap: "break-word" as const,
 };
 
 const mobileHeroEventTitleStyle = {
   ...heroEventTitleStyle,
-  fontSize: "2rem",
+  fontSize: "1.45rem",
+  margin: "0 0 8px",
 };
 
 const heroCountdownStyle = {
   fontSize: "1.35rem",
-  color: "rgba(241,232,218,0.9)",
   margin: "0 0 10px",
 };
 
 const mobileHeroCountdownStyle = {
   ...heroCountdownStyle,
-  fontSize: "1.18rem",
+  fontSize: "1rem",
+  margin: "0 0 6px",
 };
 
 const typePillStyle = {
@@ -1057,8 +1092,6 @@ const typePillStyle = {
   borderRadius: "999px",
   padding: "6px 12px",
   fontSize: "11px",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.12em",
 };
 
 const timelineStyle = {
@@ -1067,58 +1100,63 @@ const timelineStyle = {
   gap: "12px",
 };
 
+const mobileTimelineStyle = {
+  marginTop: "14px",
+  display: "grid",
+  gap: "8px",
+};
+
 const timelineItemStyle = {
   display: "flex",
   justifyContent: "space-between",
-  gap: "18px",
   alignItems: "center",
+  gap: "18px",
   borderTop: "1px solid rgba(241,232,218,0.12)",
   paddingTop: "14px",
 };
 
 const mobileTimelineItemStyle = {
   display: "grid",
-  gap: "6px",
+  gap: "5px",
   borderTop: "1px solid rgba(241,232,218,0.12)",
-  paddingTop: "14px",
+  paddingTop: "12px",
 };
 
 const timelineTitleStyle = {
   margin: 0,
   fontSize: "17px",
-  color: "rgba(241,232,218,0.86)",
-  overflowWrap: "break-word" as const,
 };
 
 const timelineCountdownStyle = {
   margin: 0,
-  color: "rgba(241,232,218,0.76)",
   whiteSpace: "nowrap" as const,
 };
 
 const mobileTimelineCountdownStyle = {
   margin: 0,
-  color: "rgba(241,232,218,0.76)",
-  whiteSpace: "normal" as const,
 };
 
 const fieldLabelStyle = {
   display: "block",
-  color: "rgba(241,232,218,0.48)",
   marginBottom: "8px",
   fontSize: "13px",
+  color: "rgba(241,232,218,0.48)",
 };
 
 const inputStyle = {
   width: "100%",
-  boxSizing: "border-box" as const,
   marginBottom: "14px",
-  border: "1px solid rgba(241,232,218,0.16)",
+  padding: "12px 13px",
   borderRadius: "15px",
+  border: "1px solid rgba(241,232,218,0.16)",
   background: "rgba(255,255,255,0.055)",
   color: "rgba(241,232,218,0.9)",
-  padding: "12px 13px",
-  outline: "none",
+  boxSizing: "border-box" as const,
+};
+
+const mobileInputStyle = {
+  ...inputStyle,
+  padding: "10px 12px",
 };
 
 const textareaStyle = {
@@ -1127,75 +1165,82 @@ const textareaStyle = {
   resize: "none" as const,
 };
 
+const mobileTextareaStyle = {
+  ...textareaStyle,
+  minHeight: "68px",
+};
+
 const buttonStyle = {
   width: "100%",
-  boxSizing: "border-box" as const,
+  padding: "14px",
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.3)",
   background: "rgba(241,232,218,0.08)",
   color: "rgba(241,232,218,0.9)",
-  padding: "14px",
   cursor: "pointer",
 };
 
 const selectedDateStyle = {
-  margin: "8px 0 20px",
+  margin: "8px 0 18px",
   fontSize: "2rem",
-  fontWeight: 300,
 };
 
 const selectedInnerGridStyle = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) 420px",
+  gridTemplateColumns: "minmax(0,1fr) 420px",
   gap: "24px",
-  alignItems: "start",
 };
 
 const mobileSelectedInnerGridStyle = {
   display: "grid",
-  gridTemplateColumns: "1fr",
-  gap: "18px",
-  alignItems: "start",
+  gap: "16px",
 };
 
 const journalBoxStyle = {
-  borderRadius: "24px",
+  borderRadius: "22px",
   border: "1px solid rgba(241,232,218,0.12)",
   background: "rgba(255,255,255,0.04)",
   padding: "22px",
-  minWidth: 0,
-  boxSizing: "border-box" as const,
+};
+
+const mobileJournalBoxStyle = {
+  ...journalBoxStyle,
+  padding: "16px",
 };
 
 const journalPromptStyle = {
-  margin: "8px 0 14px",
-  color: "rgba(241,232,218,0.58)",
-  fontStyle: "italic",
+  margin: "8px 0 12px",
 };
 
 const moodGridStyle = {
   display: "flex",
   flexWrap: "wrap" as const,
   gap: "10px",
-  marginBottom: "16px",
+};
+
+const mobileMoodGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+  gap: "8px",
 };
 
 const moodButtonStyle = {
   borderRadius: "999px",
-  border: "1px solid rgba(241,232,218,0.14)",
-  background: "rgba(255,255,255,0.035)",
-  color: "rgba(241,232,218,0.62)",
   padding: "8px 13px",
-  cursor: "pointer",
   display: "flex",
   alignItems: "center",
   gap: "7px",
+  cursor: "pointer",
+};
+
+const mobileMoodButtonStyle = {
+  ...moodButtonStyle,
+  padding: "6px 8px",
+  fontSize: "13px",
 };
 
 const activeMoodButtonStyle = {
-  border: "1px solid rgba(241,232,218,0.4)",
-  background: "rgba(213,169,102,0.2)",
-  color: "rgba(241,232,218,0.9)",
+  background: "rgba(213,169,102,.2)",
 };
 
 const moodChoiceEmojiStyle = {
@@ -1204,63 +1249,48 @@ const moodChoiceEmojiStyle = {
 
 const journalTextareaStyle = {
   width: "100%",
-  boxSizing: "border-box" as const,
   minHeight: "150px",
-  marginBottom: "16px",
-  border: "1px solid rgba(241,232,218,0.14)",
-  borderRadius: "18px",
-  background: "rgba(255,255,255,0.045)",
-  color: "rgba(241,232,218,0.9)",
   padding: "14px",
-  outline: "none",
+  marginBottom: "16px",
+  borderRadius: "18px",
   resize: "none" as const,
+  boxSizing: "border-box" as const,
+};
+
+const mobileJournalTextareaStyle = {
+  ...journalTextareaStyle,
+  minHeight: "100px",
 };
 
 const eventCardStyle = {
   display: "flex",
   justifyContent: "space-between",
   gap: "16px",
-  alignItems: "flex-start",
-  borderRadius: "20px",
-  border: "1px solid rgba(241,232,218,0.12)",
-  background: "rgba(255,255,255,0.04)",
   padding: "16px",
-  minWidth: 0,
 };
 
 const mobileEventCardStyle = {
   display: "grid",
-  gap: "12px",
-  borderRadius: "20px",
-  border: "1px solid rgba(241,232,218,0.12)",
-  background: "rgba(255,255,255,0.04)",
-  padding: "16px",
-  minWidth: 0,
+  gap: "10px",
+  padding: "14px",
 };
 
 const eventTitleStyle = {
   margin: 0,
-  fontSize: "1.25rem",
-  color: "rgba(241,232,218,0.86)",
-  overflowWrap: "break-word" as const,
+  fontSize: "1.2rem",
 };
 
 const mutedStyle = {
-  color: "rgba(241,232,218,0.52)",
-  overflowWrap: "break-word" as const,
+  color: "rgba(241,232,218,.55)",
 };
 
 const notesStyle = {
-  color: "rgba(241,232,218,0.58)",
   fontSize: "14px",
-  overflowWrap: "break-word" as const,
 };
 
 const deleteButtonStyle = {
   border: "none",
   background: "transparent",
-  color: "rgba(241,160,150,0.72)",
+  color: "rgba(241,160,150,.72)",
   cursor: "pointer",
-  padding: 0,
-  width: "fit-content",
 };
