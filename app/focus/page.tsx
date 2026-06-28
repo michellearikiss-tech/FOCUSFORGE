@@ -18,8 +18,27 @@ const sceneMap: Record<string, "library" | "rain" | "forest" | "stars"> = {
   Stars: "stars",
 };
 
+const quietThoughts = [
+  "Quiet progress is still progress.",
+  "Stay where your feet are.",
+  "One page at a time.",
+  "Do not rush this hour.",
+  "Your future self will thank you.",
+  "Small focus becomes real change.",
+  "Begin again, gently.",
+  "You are building something quietly.",
+  "Let this moment be enough.",
+  "The work matters because you chose it.",
+];
+
 type Mode = "timer" | "stopwatch";
 type Phase = "focus" | "break";
+
+type Journey = {
+  focusMinutes: number;
+  sessions: number;
+  completedTasks: number;
+};
 
 export default function FocusPage() {
   const {
@@ -45,19 +64,27 @@ export default function FocusPage() {
   const [seconds, setSeconds] = useState(25 * 60);
   const [message, setMessage] = useState("");
 
+  const [journey, setJourney] = useState<Journey>({
+    focusMinutes: 0,
+    sessions: 0,
+    completedTasks: 0,
+  });
+
   useEffect(() => {
-    async function loadUser() {
+    async function loadUserAndToday() {
       const { data } = await supabase.auth.getUser();
-      setUserId(data.user?.id || "");
+      const currentUserId = data.user?.id || "";
+
+      setUserId(currentUserId);
+
+      if (currentUserId) {
+        loadTodayJourney(currentUserId);
+      }
     }
 
-    loadUser();
-
-    const savedTask = localStorage.getItem("activeTask") || "Deep Work Session";
-    const savedSetting = localStorage.getItem("focusSetting") || "Library";
-
-    setTask(savedTask);
-    setSetting(savedSetting);
+    setTask(localStorage.getItem("activeTask") || "Deep Work Session");
+    setSetting(localStorage.getItem("focusSetting") || "Library");
+    loadUserAndToday();
   }, []);
 
   useEffect(() => {
@@ -85,7 +112,35 @@ export default function FocusPage() {
     return () => window.clearInterval(interval);
   }, [started, running, mode, phase, breakMinutes, stopSounds]);
 
+  async function loadTodayJourney(currentUserId: string) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const { data: sessions } = await supabase
+      .from("study_sessions")
+      .select("duration_minutes")
+      .eq("user_id", currentUserId)
+      .gte("created_at", start.toISOString());
+
+    const { data: completedTasks } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("user_id", currentUserId)
+      .eq("done", true)
+      .gte("completed_at", start.toISOString());
+
+    const focusTotal =
+      sessions?.reduce((sum, item) => sum + Number(item.duration_minutes || 0), 0) || 0;
+
+    setJourney({
+      focusMinutes: focusTotal,
+      sessions: sessions?.length || 0,
+      completedTasks: completedTasks?.length || 0,
+    });
+  }
+
   const backgroundImage = backgroundMap[setting] || backgroundMap.Library;
+  const scene = sceneMap[setting] || "library";
 
   const totalSeconds = useMemo(() => {
     if (mode === "stopwatch") return Math.max(seconds, 1);
@@ -101,13 +156,25 @@ export default function FocusPage() {
     return 1 - seconds / Math.max(totalSeconds, 1);
   }, [mode, seconds, totalSeconds, focusMinutes]);
 
+  const quietThought = useMemo(() => {
+    const today = new Date();
+    const seed =
+      today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+
+    return quietThoughts[seed % quietThoughts.length];
+  }, []);
+
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
+  const todayHours = Math.floor(journey.focusMinutes / 60);
+  const todayMins = journey.focusMinutes % 60;
+  const todayText =
+    todayHours > 0 ? `${todayHours}h ${todayMins}m` : `${journey.focusMinutes}m`;
+
   async function beginSession() {
     setMessage("");
-    await startSounds(sceneMap[setting] || "library");
-
+    await startSounds(scene);
     setStarted(true);
     setRunning(true);
     setPhase("focus");
@@ -122,7 +189,7 @@ export default function FocusPage() {
     }
 
     setRunning(true);
-    startSounds(sceneMap[setting] || "library");
+    startSounds(scene);
   }
 
   function resetSession() {
@@ -164,56 +231,46 @@ export default function FocusPage() {
 
     window.location.href = "/complete";
   }
+
   return (
-    <main style={pageStyle}>
-      <div
-        style={{
-          ...backgroundStyle,
-          backgroundImage: `url('${backgroundImage}')`,
-        }}
-      />
+    <main className={`focus-page scene-${scene}`}>
+      <div className="background" style={{ backgroundImage: `url('${backgroundImage}')` }} />
+      <div className="overlay" />
 
-      <div style={overlayStyle} />
-
-      <div style={contentStyle}>
-        <header style={headerStyle}>
-          <div>
-            <p style={smallLabel}>FocusForge</p>
-            <h1 style={mainTitle}>Stay with the moment.</h1>
-          </div>
-
-          <div style={navStyle}>
-            <a href="/forge" style={navButton}>
-              Forge
-            </a>
-            <a href="/calendar" style={navButton}>
-              Calendar
-            </a>
-            <a href="/check-in" style={navButton}>
-              Change Space
-            </a>
-          </div>
-        </header>
-
-        {!started ? (
-          <section style={setupLayout}>
-            <div style={setupHero}>
-              <p style={smallLabel}>{setting} · Focus Setup</p>
-              <h2 style={taskTitle}>{task}</h2>
-              <p style={descriptionText}>
-                Choose your rhythm, settle into your space, and begin when you are ready.
-              </p>
+      <div className={started ? "content session-mode" : "content setup-mode"}>
+        {!started && (
+          <header className="header">
+            <div>
+              <p className="brand">FocusForge</p>
+              <h1>Stay with the moment.</h1>
             </div>
 
-            <div style={setupCard}>
-              <div style={modeSwitch}>
+            <nav>
+              <a href="/forge">Forge</a>
+              <a href="/calendar">Calendar</a>
+              <a href="/check-in">Change Space</a>
+            </nav>
+          </header>
+        )}
+
+        {!started ? (
+          <section className="setup-screen">
+            <div className="setup-card">
+              <p className="eyebrow">{setting} · Focus Setup</p>
+
+              <p className="tiny-title">Today&apos;s Task</p>
+              <h2>{task}</h2>
+
+              <div className="soft-line" />
+
+              <div className="mode-switch">
                 <button
                   type="button"
                   onClick={() => {
                     setMode("timer");
                     setSeconds(focusMinutes * 60);
                   }}
-                  style={mode === "timer" ? activeModeButton : modeButton}
+                  className={mode === "timer" ? "active" : ""}
                 >
                   Timer
                 </button>
@@ -224,145 +281,775 @@ export default function FocusPage() {
                     setMode("stopwatch");
                     setSeconds(0);
                   }}
-                  style={mode === "stopwatch" ? activeModeButton : modeButton}
+                  className={mode === "stopwatch" ? "active" : ""}
                 >
                   Stopwatch
                 </button>
               </div>
 
               {mode === "timer" ? (
-                <>
-                  <p style={sectionLabel}>Focus Duration</p>
-                  <div style={buttonGrid}>
-                    {[15, 25, 45, 60].map((min) => (
-                      <button
-                        key={min}
-                        type="button"
-                        onClick={() => {
-                          setFocusMinutes(min);
-                          setSeconds(min * 60);
-                        }}
-                        style={focusMinutes === min ? activeOptionButton : optionButton}
-                      >
-                        {min} min
-                      </button>
-                    ))}
+                <div className="duration-area">
+                  <div>
+                    <p className="section-label">Focus Duration</p>
+                    <div className="option-grid">
+                      {[15, 25, 45, 60].map((min) => (
+                        <button
+                          key={min}
+                          type="button"
+                          onClick={() => {
+                            setFocusMinutes(min);
+                            setSeconds(min * 60);
+                          }}
+                          className={focusMinutes === min ? "active" : ""}
+                        >
+                          {min} min
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <p style={sectionLabel}>Break Duration</p>
-                  <div style={buttonGrid}>
-                    {[5, 10, 15].map((min) => (
-                      <button
-                        key={min}
-                        type="button"
-                        onClick={() => setBreakMinutes(min)}
-                        style={breakMinutes === min ? activeOptionButton : optionButton}
-                      >
-                        {min} min
-                      </button>
-                    ))}
+                  <div>
+                    <p className="section-label">Break Duration</p>
+                    <div className="option-grid break-grid">
+                      {[5, 10, 15].map((min) => (
+                        <button
+                          key={min}
+                          type="button"
+                          onClick={() => setBreakMinutes(min)}
+                          className={breakMinutes === min ? "active" : ""}
+                        >
+                          {min} min
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </>
+                </div>
               ) : (
-                <div style={stopwatchNote}>
-                  <p style={sectionLabel}>Open Session</p>
-                  <p style={descriptionText}>
-                    Stopwatch mode counts upward. Use it when you want to stay until the work feels
-                    complete.
-                  </p>
+                <div className="stopwatch-note">
+                  Stopwatch counts upward until you choose to complete.
                 </div>
               )}
 
-              <div style={soundPreviewBox}>
+              <div className="soft-line small" />
+
+              <div className="sound-stack">
                 <SoundSlider label="Noise" value={noiseVolume} onChange={setNoiseVolume} />
                 <SoundSlider label="Music" value={musicVolume} onChange={setMusicVolume} />
               </div>
 
-              <button type="button" onClick={beginSession} style={beginButton}>
+              <button type="button" onClick={beginSession} className="begin-button">
                 Begin Session →
               </button>
+
+              <p className="setup-note">You can adjust sound during the session.</p>
             </div>
           </section>
         ) : (
-          <section style={sessionLayout}>
-            <div style={timerCard}>
-              <p style={smallLabel}>
+          <section className="session-screen">
+            <div className="timer-card">
+              <p className="eyebrow">
                 {setting} · {phase === "focus" ? "Focus" : "Break"}
               </p>
 
-              <h2 style={taskTitle}>{task}</h2>
+              <p className="tiny-title">Today&apos;s Task</p>
+              <h2>{task}</h2>
 
-              <div style={circleWrap}>
-                <svg viewBox="0 0 120 120" style={circleSvg}>
-                  <circle cx="60" cy="60" r="52" style={circleTrack} />
+              <div className="circle-wrap">
+                <svg viewBox="0 0 120 120">
+                  <circle className="circle-track" cx="60" cy="60" r="52" />
                   <circle
+                    className="circle-progress"
                     cx="60"
                     cy="60"
                     r="52"
-                    style={{
-                      ...circleProgress,
-                      strokeDashoffset: 326.7 - 326.7 * progress,
-                    }}
+                    style={{ strokeDashoffset: 326.7 - 326.7 * progress }}
                   />
                 </svg>
 
-                <div style={timerText}>
+                <div className="timer-text">
                   {String(minutes).padStart(2, "0")}:
                   {String(remainingSeconds).padStart(2, "0")}
                 </div>
               </div>
 
-              <p style={sessionHint}>
-                {phase === "focus"
-                  ? "Leave everything else outside. This is the only thing that matters right now."
-                  : "Step back. Breathe. Then return."}
+              <p className="session-hint">
+                {phase === "focus" ? "Leave everything else outside." : "Step back. Breathe."}
               </p>
 
-              <div style={controlRow}>
-                <button type="button" onClick={pauseOrResume} style={controlButton}>
-                  {running ? "Pause" : "Resume"}
-                </button>
+              <button type="button" onClick={pauseOrResume} className="main-control">
+                {running ? "Pause" : "Resume"}
+              </button>
 
-                <button type="button" onClick={completeSession} style={controlButton}>
-                  Complete
-                </button>
-
-                <button type="button" onClick={resetSession} style={controlButton}>
+              <div className="secondary-controls">
+                <button type="button" onClick={resetSession}>
                   Reset
+                </button>
+
+                <button type="button" onClick={completeSession}>
+                  Complete
                 </button>
               </div>
 
-              {message && <p style={messageStyle}>{message}</p>}
+              {message && <p className="message">{message}</p>}
             </div>
 
-            <aside style={sidePanel}>
-              <div style={infoCard}>
-                <p style={smallLabel}>Sound Space</p>
-
-                <div style={{ marginTop: "18px", display: "grid", gap: "18px" }}>
+            <aside className="side-panel">
+              <div className="info-card sound-card">
+                <p className="eyebrow">Sound Space</p>
+                <div className="sound-stack">
                   <SoundSlider label="Noise" value={noiseVolume} onChange={setNoiseVolume} />
                   <SoundSlider label="Music" value={musicVolume} onChange={setMusicVolume} />
                 </div>
               </div>
 
-              <div style={infoCard}>
-                <p style={smallLabel}>Studying Right Now</p>
-                <h3 style={onlineNumber}>{running ? "128" : "127"}</h3>
-                <p style={cardText}>
-                  A quiet room of students is working with you. No likes, no comments, just presence.
-                </p>
+              <div className="info-card journey-card">
+                <p className="eyebrow">Today&apos;s Journey</p>
+                <div className="journey-main">{todayText}</div>
+
+                <div className="journey-grid">
+                  <div>
+                    <span>{journey.sessions}</span>
+                    <p>Sessions</p>
+                  </div>
+
+                  <div>
+                    <span>{journey.completedTasks}</span>
+                    <p>Tasks</p>
+                  </div>
+                </div>
               </div>
 
-              <div style={infoCard}>
-                <p style={smallLabel}>After This</p>
-                <p style={cardText}>
-                  Completing this session sends it into your study history and helps build your streak.
-                </p>
+              <div className="info-card thought-card">
+                <p className="eyebrow">A Quiet Thought</p>
+                <p>{quietThought}</p>
               </div>
             </aside>
           </section>
         )}
       </div>
+
+      <style jsx>{`
+        .focus-page {
+          --accent: rgba(255, 255, 255, 0.1);
+          --accent-strong: rgba(255, 255, 255, 0.16);
+          --text: rgba(244, 238, 228, 0.92);
+          --muted: rgba(244, 238, 228, 0.56);
+          position: relative;
+          width: 100vw;
+          height: 100svh;
+          overflow: hidden;
+          background: #0b0807;
+          color: var(--text);
+        }
+
+        .scene-rain {
+          --accent: rgba(78, 118, 92, 0.2);
+          --accent-strong: rgba(97, 139, 111, 0.28);
+        }
+
+        .scene-stars {
+          --accent: rgba(74, 85, 137, 0.2);
+          --accent-strong: rgba(90, 104, 165, 0.28);
+        }
+
+        .scene-library {
+          --accent: rgba(103, 71, 48, 0.22);
+          --accent-strong: rgba(126, 86, 58, 0.28);
+        }
+
+        .scene-forest {
+          --accent: rgba(230, 226, 210, 0.12);
+          --accent-strong: rgba(238, 234, 220, 0.18);
+        }
+
+        .background {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          background-size: cover;
+          background-position: center;
+          filter: blur(4px);
+          transform: scale(1.04);
+        }
+
+        .overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 1;
+          background:
+            radial-gradient(circle at 50% 18%, rgba(241, 232, 218, 0.11), transparent 34%),
+            linear-gradient(to bottom, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.72));
+        }
+
+        .content {
+          position: relative;
+          z-index: 10;
+          width: 100%;
+          height: 100svh;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .setup-mode {
+          padding: 24px 34px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .session-mode {
+          padding: 18px 24px;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 18px;
+          margin-bottom: 4px;
+          flex: 0 0 auto;
+        }
+
+        .brand,
+        .eyebrow {
+          margin: 0;
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+          color: rgba(244, 238, 228, 0.54);
+          font-size: 10px;
+        }
+
+        h1 {
+          margin: 6px 0 0;
+          font-family: Cormorant Garamond, Georgia, serif;
+          font-size: clamp(2.6rem, 5.4vw, 4.8rem);
+          font-weight: 300;
+          line-height: 0.92;
+        }
+
+        nav {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        nav a {
+          border: 1px solid rgba(244, 238, 228, 0.22);
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.045);
+          color: rgba(244, 238, 228, 0.8);
+          padding: 9px 15px;
+          text-decoration: none;
+          font-size: 14px;
+          backdrop-filter: blur(12px);
+        }
+
+        .setup-screen {
+          flex: 1;
+          min-height: 0;
+          display: grid;
+          place-items: center;
+        }
+
+        .setup-card {
+          width: min(620px, 100%);
+          max-height: 100%;
+          border-radius: 30px;
+          border: 1px solid rgba(244, 238, 228, 0.18);
+          background:
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+            rgba(10, 8, 6, 0.18);
+          backdrop-filter: blur(16px);
+          box-sizing: border-box;
+          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+          padding: 20px 24px;
+          text-align: center;
+        }
+
+        .tiny-title {
+          margin: 13px 0 0;
+          color: var(--muted);
+          font-size: 13px;
+        }
+
+        h2 {
+          margin: 6px 0 8px;
+          font-family: Cormorant Garamond, Georgia, serif;
+          font-size: clamp(2.4rem, 5vw, 4.15rem);
+          font-weight: 300;
+          line-height: 0.96;
+        }
+
+        .soft-line {
+          height: 1px;
+          width: 100%;
+          margin: 14px 0;
+          background: linear-gradient(
+            to right,
+            transparent,
+            rgba(244, 238, 228, 0.2),
+            transparent
+          );
+        }
+
+        .soft-line.small {
+          margin: 14px 0 12px;
+        }
+
+        .mode-switch {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 9px;
+        }
+
+        .mode-switch button,
+        .option-grid button {
+          min-height: 40px;
+          border-radius: 999px;
+          border: 1px solid rgba(244, 238, 228, 0.18);
+          background: rgba(255, 255, 255, 0.04);
+          color: rgba(244, 238, 228, 0.68);
+          cursor: pointer;
+          font-size: 13px;
+        }
+
+        .mode-switch button.active,
+        .option-grid button.active {
+          border-color: rgba(244, 238, 228, 0.34);
+          background: var(--accent);
+          color: rgba(244, 238, 228, 0.92);
+        }
+
+        .duration-area {
+          display: grid;
+          gap: 0;
+        }
+
+        .section-label {
+          margin: 13px 0 7px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: rgba(244, 238, 228, 0.48);
+          font-size: 10px;
+          text-align: left;
+        }
+
+        .option-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .break-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .stopwatch-note {
+          margin-top: 14px;
+          border: 1px solid rgba(244, 238, 228, 0.14);
+          border-radius: 18px;
+          background: rgba(255, 255, 255, 0.035);
+          padding: 13px;
+          color: rgba(244, 238, 228, 0.58);
+          font-size: 13px;
+        }
+
+        .sound-stack {
+          display: grid;
+          gap: 10px;
+        }
+
+        .begin-button {
+          margin-top: 16px;
+          width: 100%;
+          min-height: 50px;
+          border-radius: 999px;
+          border: 1px solid rgba(244, 238, 228, 0.24);
+          background: rgba(255, 255, 255, 0.065);
+          color: rgba(244, 238, 228, 0.9);
+          cursor: pointer;
+          letter-spacing: 0.13em;
+          font-size: 14px;
+          transition: 0.25s ease;
+        }
+
+        .begin-button:hover {
+          background: var(--accent-strong);
+          border-color: rgba(244, 238, 228, 0.36);
+        }
+
+        .setup-note {
+          margin: 9px 0 0;
+          color: rgba(244, 238, 228, 0.42);
+          font-size: 12px;
+        }
+
+        .session-screen {
+          width: 100%;
+          height: calc(100svh - 36px);
+          display: grid;
+          grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
+          gap: 16px;
+        }
+
+        .timer-card,
+        .info-card {
+          border: 1px solid rgba(244, 238, 228, 0.18);
+          background: rgba(10, 8, 6, 0.3);
+          backdrop-filter: blur(18px);
+          box-sizing: border-box;
+          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+        }
+
+        .timer-card {
+          min-height: 0;
+          border-radius: 34px;
+          padding: 18px 24px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .circle-wrap {
+          position: relative;
+          width: min(330px, 30vw);
+          aspect-ratio: 1;
+          margin: 0 auto 10px;
+        }
+
+        .circle-wrap svg {
+          width: 100%;
+          height: 100%;
+          transform: rotate(-90deg);
+        }
+
+        .circle-track {
+          fill: none;
+          stroke: rgba(244, 238, 228, 0.13);
+          stroke-width: 5;
+        }
+
+        .circle-progress {
+          fill: none;
+          stroke: rgba(244, 238, 228, 0.72);
+          stroke-width: 5;
+          stroke-linecap: round;
+          stroke-dasharray: 326.7;
+          transition: stroke-dashoffset 500ms ease;
+        }
+
+        .timer-text {
+          position: absolute;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          font-family: Cormorant Garamond, Georgia, serif;
+          font-size: clamp(4rem, 8vw, 6.6rem);
+          font-weight: 300;
+        }
+
+        .session-hint {
+          margin: 0 0 12px;
+          color: rgba(244, 238, 228, 0.58);
+          font-size: 13px;
+        }
+
+        .main-control {
+          min-width: 160px;
+          min-height: 46px;
+          border-radius: 999px;
+          border: 1px solid rgba(244, 238, 228, 0.3);
+          background: var(--accent);
+          color: rgba(244, 238, 228, 0.94);
+          cursor: pointer;
+          font-size: 14px;
+        }
+
+        .secondary-controls {
+          display: flex;
+          gap: 10px;
+          margin-top: 9px;
+        }
+
+        .secondary-controls button {
+          min-width: 104px;
+          min-height: 38px;
+          border-radius: 999px;
+          border: 1px solid rgba(244, 238, 228, 0.2);
+          background: rgba(255, 255, 255, 0.04);
+          color: rgba(244, 238, 228, 0.75);
+          cursor: pointer;
+        }
+
+        .message {
+          margin: 10px 0 0;
+          color: rgba(244, 238, 228, 0.66);
+          font-size: 13px;
+        }
+
+        .side-panel {
+          min-height: 0;
+          display: grid;
+          grid-template-rows: 0.85fr 0.85fr 1fr;
+          gap: 10px;
+        }
+
+        .info-card {
+          min-height: 0;
+          border-radius: 24px;
+          padding: 14px 16px;
+          overflow: hidden;
+        }
+
+        .sound-card {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+
+        .journey-main {
+          margin: 8px 0;
+          font-family: Cormorant Garamond, Georgia, serif;
+          font-size: 2.2rem;
+          font-weight: 300;
+        }
+
+        .journey-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+
+        .journey-grid div {
+          border: 1px solid rgba(244, 238, 228, 0.13);
+          border-radius: 16px;
+          padding: 8px;
+          background: rgba(255, 255, 255, 0.035);
+        }
+
+        .journey-grid span {
+          display: block;
+          font-size: 18px;
+          color: rgba(244, 238, 228, 0.9);
+        }
+
+        .journey-grid p {
+          margin: 3px 0 0;
+          color: rgba(244, 238, 228, 0.52);
+          font-size: 11px;
+        }
+
+        .thought-card p:last-child {
+          margin: 10px 0 0;
+          font-family: Cormorant Garamond, Georgia, serif;
+          font-size: clamp(1.45rem, 2.3vw, 2rem);
+          line-height: 1.08;
+          font-weight: 300;
+          color: rgba(244, 238, 228, 0.86);
+        }
+
+        @media (max-width: 900px) {
+          nav {
+            display: none;
+          }
+
+          .setup-mode {
+            padding: 16px;
+          }
+
+          h1 {
+            font-size: 2.4rem;
+          }
+
+          .session-mode {
+            padding: 12px;
+          }
+
+          .session-screen {
+            height: calc(100svh - 24px);
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr auto;
+            gap: 10px;
+          }
+
+          .side-panel {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+          }
+
+          .sound-card {
+            grid-column: 1 / -1;
+          }
+
+          .circle-wrap {
+            width: min(270px, 58vw);
+          }
+        }
+
+        @media (max-width: 560px) {
+          .setup-mode {
+            padding: 10px 12px;
+          }
+
+          .header {
+            margin-bottom: 8px;
+          }
+
+          .brand {
+            font-size: 9px;
+          }
+
+          .eyebrow {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+          }
+
+          h1 {
+            font-size: 1.8rem;
+          }
+
+          .setup-card {
+            padding: 13px;
+            border-radius: 24px;
+          }
+
+          .tiny-title {
+            margin-top: 8px;
+            font-size: 12px;
+          }
+
+          h2 {
+            font-size: 2rem;
+            margin: 4px 0 6px;
+          }
+
+          .soft-line {
+            margin: 10px 0;
+          }
+
+          .mode-switch button,
+          .option-grid button {
+            min-height: 34px;
+            font-size: 12px;
+          }
+
+          .option-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px;
+          }
+
+          .break-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+
+          .section-label {
+            margin: 9px 0 6px;
+            font-size: 9px;
+          }
+
+          .begin-button {
+            min-height: 44px;
+            margin-top: 11px;
+            font-size: 12px;
+          }
+
+          .setup-note {
+            display: none;
+          }
+
+          .session-screen {
+            height: calc(100svh - 24px);
+          }
+
+          .timer-card {
+            padding: 12px;
+            border-radius: 24px;
+          }
+
+          .timer-card h2 {
+            font-size: 1.8rem;
+          }
+
+          .circle-wrap {
+            width: min(215px, 58vw);
+          }
+
+          .timer-text {
+            font-size: clamp(3rem, 14vw, 4.4rem);
+          }
+
+          .session-hint {
+            display: none;
+          }
+
+          .main-control {
+            min-height: 40px;
+            min-width: 142px;
+          }
+
+          .secondary-controls button {
+            min-height: 34px;
+            min-width: 88px;
+            font-size: 12px;
+          }
+
+          .side-panel {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+          }
+
+          .info-card {
+            padding: 10px 12px;
+            border-radius: 18px;
+          }
+
+          .journey-card .eyebrow,
+          .journey-grid {
+            display: none;
+          }
+
+          .journey-main {
+            margin: 0;
+            font-size: 1.35rem;
+          }
+
+          .journey-main::before {
+            content: "Today · ";
+            color: rgba(244, 238, 228, 0.55);
+            font-size: 12px;
+          }
+
+          .thought-card p:last-child {
+            margin-top: 6px;
+            font-size: 1.15rem;
+          }
+        }
+
+        @media (max-height: 720px) and (max-width: 560px) {
+          h1 {
+            display: none;
+          }
+
+          .header {
+            margin-bottom: 5px;
+          }
+
+          .setup-card {
+            padding: 11px;
+          }
+
+          .circle-wrap {
+            width: min(190px, 54vw);
+          }
+
+          .thought-card {
+            display: none;
+          }
+        }
+      `}</style>
     </main>
   );
 }
@@ -377,8 +1064,9 @@ function SoundSlider({
   onChange: (value: number) => void;
 }) {
   return (
-    <label style={sliderWrap}>
+    <label className="slider">
       <span>{label}</span>
+
       <input
         type="range"
         min="0"
@@ -386,353 +1074,32 @@ function SoundSlider({
         step="0.01"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={sliderInput}
       />
+
+      <style jsx>{`
+        .slider {
+          display: grid;
+          grid-template-columns: 54px 1fr;
+          gap: 10px;
+          align-items: center;
+          color: rgba(244, 238, 228, 0.66);
+          font-size: 13px;
+        }
+
+        input {
+          width: 100%;
+          accent-color: rgba(244, 238, 228, 0.78);
+          cursor: pointer;
+        }
+
+        @media (max-width: 560px) {
+          .slider {
+            grid-template-columns: 46px 1fr;
+            gap: 8px;
+            font-size: 12px;
+          }
+        }
+      `}</style>
     </label>
   );
 }
-const pageStyle = {
-  position: "relative" as const,
-  minHeight: "100svh",
-  overflowX: "hidden" as const,
-  background: "#0b0807",
-};
-
-const backgroundStyle = {
-  position: "fixed" as const,
-  inset: 0,
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  filter: "blur(4px)",
-  transform: "scale(1.04)",
-  pointerEvents: "none" as const,
-  zIndex: 0,
-};
-
-const overlayStyle = {
-  position: "fixed" as const,
-  inset: 0,
-  background:
-    "radial-gradient(circle at 48% 22%, rgba(241,232,218,0.16), transparent 34%), linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.66))",
-  pointerEvents: "none" as const,
-  zIndex: 1,
-};
-
-const contentStyle = {
-  position: "relative" as const,
-  zIndex: 10,
-  minHeight: "100svh",
-  padding: "clamp(22px, 5vw, 46px)",
-  boxSizing: "border-box" as const,
-  color: "rgba(241,232,218,0.92)",
-};
-
-const headerStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: "20px",
-  flexWrap: "wrap" as const,
-  marginBottom: "clamp(26px, 5vw, 50px)",
-};
-
-const navStyle = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap" as const,
-  justifyContent: "flex-end",
-};
-
-const navButton = {
-  border: "1px solid rgba(241,232,218,0.24)",
-  borderRadius: "999px",
-  background: "rgba(255,255,255,0.055)",
-  color: "rgba(241,232,218,0.84)",
-  padding: "11px 17px",
-  textDecoration: "none",
-  fontSize: "14px",
-  backdropFilter: "blur(12px)",
-};
-
-const smallLabel = {
-  margin: 0,
-  letterSpacing: "0.28em",
-  textTransform: "uppercase" as const,
-  color: "rgba(241,232,218,0.55)",
-  fontSize: "12px",
-};
-
-const mainTitle = {
-  margin: "10px 0 0",
-  fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "clamp(2.6rem, 9vw, 5.4rem)",
-  fontWeight: 300,
-  lineHeight: 0.95,
-};
-
-const setupLayout = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 520px)",
-  gap: "clamp(22px, 5vw, 46px)",
-  alignItems: "center",
-};
-
-const setupHero = {
-  minHeight: "420px",
-  borderRadius: "36px",
-  border: "1px solid rgba(241,232,218,0.18)",
-  background: "rgba(10,8,6,0.24)",
-  backdropFilter: "blur(16px)",
-  padding: "clamp(26px, 5vw, 48px)",
-  boxSizing: "border-box" as const,
-  display: "flex",
-  flexDirection: "column" as const,
-  justifyContent: "center",
-};
-
-const taskTitle = {
-  margin: "16px 0 16px",
-  fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "clamp(2.4rem, 8vw, 4.6rem)",
-  fontWeight: 300,
-  lineHeight: 1,
-};
-
-const descriptionText = {
-  margin: 0,
-  color: "rgba(241,232,218,0.62)",
-  fontSize: "15px",
-  lineHeight: 1.7,
-  maxWidth: "520px",
-};
-
-const setupCard = {
-  borderRadius: "32px",
-  border: "1px solid rgba(241,232,218,0.22)",
-  background: "rgba(10,8,6,0.34)",
-  backdropFilter: "blur(18px)",
-  padding: "26px",
-  boxSizing: "border-box" as const,
-};
-
-const modeSwitch = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "10px",
-};
-
-const modeButton = {
-  borderRadius: "999px",
-  border: "1px solid rgba(241,232,218,0.2)",
-  background: "rgba(255,255,255,0.045)",
-  color: "rgba(241,232,218,0.68)",
-  minHeight: "48px",
-  cursor: "pointer",
-};
-
-const activeModeButton = {
-  ...modeButton,
-  border: "1px solid rgba(241,232,218,0.62)",
-  background: "rgba(241,232,218,0.14)",
-  color: "rgba(241,232,218,0.94)",
-};
-
-const sectionLabel = {
-  margin: "26px 0 12px",
-  letterSpacing: "0.2em",
-  textTransform: "uppercase" as const,
-  color: "rgba(241,232,218,0.52)",
-  fontSize: "12px",
-};
-
-const buttonGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "10px",
-};
-
-const optionButton = {
-  borderRadius: "18px",
-  border: "1px solid rgba(241,232,218,0.18)",
-  background: "rgba(255,255,255,0.045)",
-  color: "rgba(241,232,218,0.72)",
-  minHeight: "48px",
-  cursor: "pointer",
-};
-
-const activeOptionButton = {
-  ...optionButton,
-  border: "1px solid rgba(241,232,218,0.5)",
-  background: "rgba(241,232,218,0.13)",
-  color: "rgba(241,232,218,0.92)",
-};
-
-const stopwatchNote = {
-  borderRadius: "22px",
-  border: "1px solid rgba(241,232,218,0.14)",
-  background: "rgba(255,255,255,0.035)",
-  padding: "18px",
-  marginTop: "20px",
-};
-
-const soundPreviewBox = {
-  marginTop: "24px",
-  display: "grid",
-  gap: "16px",
-};
-
-const beginButton = {
-  marginTop: "28px",
-  width: "100%",
-  minHeight: "56px",
-  borderRadius: "999px",
-  border: "1px solid rgba(241,232,218,0.38)",
-  background: "rgba(241,232,218,0.13)",
-  color: "rgba(241,232,218,0.94)",
-  cursor: "pointer",
-  letterSpacing: "0.12em",
-};
-
-const sessionLayout = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1.2fr) minmax(300px, 0.8fr)",
-  gap: "24px",
-  alignItems: "stretch",
-};
-
-const timerCard = {
-  minHeight: "620px",
-  borderRadius: "38px",
-  border: "1px solid rgba(241,232,218,0.22)",
-  background: "rgba(10,8,6,0.32)",
-  backdropFilter: "blur(18px)",
-  padding: "clamp(24px, 5vw, 46px)",
-  boxSizing: "border-box" as const,
-  display: "flex",
-  flexDirection: "column" as const,
-  alignItems: "center",
-  justifyContent: "center",
-  textAlign: "center" as const,
-};
-
-const circleWrap = {
-  position: "relative" as const,
-  width: "min(340px, 76vw)",
-  aspectRatio: "1",
-  margin: "4px auto 26px",
-};
-
-const circleSvg = {
-  width: "100%",
-  height: "100%",
-  transform: "rotate(-90deg)",
-};
-
-const circleTrack = {
-  fill: "none",
-  stroke: "rgba(241,232,218,0.13)",
-  strokeWidth: 5,
-};
-
-const circleProgress = {
-  fill: "none",
-  stroke: "rgba(241,232,218,0.72)",
-  strokeWidth: 5,
-  strokeLinecap: "round" as const,
-  strokeDasharray: 326.7,
-  transition: "stroke-dashoffset 500ms ease",
-};
-
-const timerText = {
-  position: "absolute" as const,
-  inset: 0,
-  display: "grid",
-  placeItems: "center",
-  fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "clamp(4rem, 14vw, 7.2rem)",
-  fontWeight: 300,
-};
-
-const sessionHint = {
-  margin: "0 auto 28px",
-  color: "rgba(241,232,218,0.62)",
-  fontSize: "15px",
-  lineHeight: 1.7,
-  maxWidth: "440px",
-};
-
-const controlRow = {
-  display: "flex",
-  gap: "12px",
-  justifyContent: "center",
-  flexWrap: "wrap" as const,
-};
-
-const controlButton = {
-  borderRadius: "999px",
-  border: "1px solid rgba(241,232,218,0.26)",
-  background: "rgba(255,255,255,0.055)",
-  color: "rgba(241,232,218,0.86)",
-  padding: "14px 24px",
-  minWidth: "110px",
-  cursor: "pointer",
-};
-
-const messageStyle = {
-  margin: "18px 0 0",
-  color: "rgba(241,232,218,0.66)",
-  fontSize: "14px",
-};
-
-const sidePanel = {
-  display: "grid",
-  gap: "18px",
-};
-
-const infoCard = {
-  borderRadius: "30px",
-  border: "1px solid rgba(241,232,218,0.2)",
-  background: "rgba(10,8,6,0.3)",
-  backdropFilter: "blur(18px)",
-  padding: "24px",
-  boxSizing: "border-box" as const,
-};
-
-const onlineNumber = {
-  margin: "14px 0 4px",
-  fontFamily: "Cormorant Garamond, Georgia, serif",
-  fontSize: "3.4rem",
-  fontWeight: 300,
-};
-
-const cardText = {
-  margin: "12px 0 0",
-  color: "rgba(241,232,218,0.58)",
-  fontSize: "14px",
-  lineHeight: 1.7,
-};
-
-const sliderWrap = {
-  display: "grid",
-  gridTemplateColumns: "64px 1fr",
-  alignItems: "center",
-  gap: "12px",
-  width: "100%",
-  color: "rgba(241,232,218,0.68)",
-  fontSize: "14px",
-};
-
-const sliderInput = {
-  width: "100%",
-  accentColor: "rgba(241,232,218,0.78)",
-  cursor: "pointer",
-};
-
-const mobileStyles = `
-@media (max-width: 900px) {
-  main div[data-focus-layout="setup"],
-  main div[data-focus-layout="session"] {
-    grid-template-columns: 1fr !important;
-  }
-}
-`;
