@@ -714,9 +714,9 @@ export default function FocusPage() {
 
         .circle-wrap {
           position: relative;
-          width: min(330px, 30vw);
+          width: min(410px, 36vw);
           aspect-ratio: 1;
-          margin: 0 auto 10px;
+          margin: 0 auto 14px;
         }
 
         .circle-wrap svg {
@@ -746,7 +746,7 @@ export default function FocusPage() {
           display: grid;
           place-items: center;
           font-family: Cormorant Garamond, Georgia, serif;
-          font-size: clamp(4rem, 8vw, 6.6rem);
+          font-size: clamp(4.8rem, 9vw, 7.8rem);
           font-weight: 300;
         }
 
@@ -884,7 +884,11 @@ export default function FocusPage() {
           }
 
           .circle-wrap {
-            width: min(270px, 58vw);
+            width: min(420px, 76vw);
+          }
+
+          .timer-text {
+            font-size: clamp(5rem, 17vw, 7.5rem);
           }
         }
 
@@ -973,11 +977,12 @@ export default function FocusPage() {
           }
 
           .circle-wrap {
-            width: min(215px, 58vw);
+            width: min(340px, 78vw);
+            margin: 2px auto 12px;
           }
 
           .timer-text {
-            font-size: clamp(3rem, 14vw, 4.4rem);
+            font-size: clamp(4.6rem, 20vw, 6.6rem);
           }
 
           .session-hint {
@@ -1042,7 +1047,11 @@ export default function FocusPage() {
           }
 
           .circle-wrap {
-            width: min(190px, 54vw);
+            width: min(300px, 72vw);
+          }
+
+          .timer-text {
+            font-size: clamp(4rem, 18vw, 5.8rem);
           }
 
           .thought-card {
