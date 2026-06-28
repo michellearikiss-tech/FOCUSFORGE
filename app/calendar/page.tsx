@@ -49,6 +49,7 @@ export default function CalendarPage() {
   const [userId, setUserId] = useState("");
   const [background, setBackground] = useState("/library-study.png");
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -67,6 +68,17 @@ export default function CalendarPage() {
   useEffect(() => {
     setBackground(getPageBackground());
     loadData();
+
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 760);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -229,6 +241,328 @@ export default function CalendarPage() {
 
   const nextBigEvent = highlightEvents[0];
   const laterEvents = highlightEvents.slice(1, 4);
+  const countdownSection = (
+    <aside style={countdownCardStyle}>
+      <p style={smallCapsStyle}>Coming Up</p>
+      <h2 style={sideTitleStyle}>Countdown</h2>
+
+      {!nextBigEvent ? (
+        <p style={mutedStyle}>No upcoming tests or deadlines.</p>
+      ) : (
+        <>
+          <div style={heroEventStyle}>
+            <p style={smallCapsStyle}>Next</p>
+
+            <h3 style={isMobile ? mobileHeroEventTitleStyle : heroEventTitleStyle}>
+              {nextBigEvent.title}
+            </h3>
+
+            <p style={isMobile ? mobileHeroCountdownStyle : heroCountdownStyle}>
+              {getDaysLeft(nextBigEvent.event_date)}
+            </p>
+
+            <p style={mutedStyle}>
+              {formatPrettyDate(nextBigEvent.event_date)}
+              {nextBigEvent.event_time
+                ? ` · ${nextBigEvent.event_time}`
+                : ""}
+            </p>
+
+            <span
+              style={{
+                ...typePillStyle,
+                background: getEventColor(nextBigEvent.event_type),
+              }}
+            >
+              {nextBigEvent.event_type}
+            </span>
+          </div>
+
+          {laterEvents.length > 0 && (
+            <div style={timelineStyle}>
+              <p style={smallCapsStyle}>Later</p>
+
+              {laterEvents.map((event) => (
+                <div
+                  key={event.id}
+                  style={isMobile ? mobileTimelineItemStyle : timelineItemStyle}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <p style={timelineTitleStyle}>{event.title}</p>
+                    <p style={mutedStyle}>
+                      {formatPrettyDate(event.event_date)}
+                    </p>
+                  </div>
+
+                  <p
+                    style={
+                      isMobile
+                        ? mobileTimelineCountdownStyle
+                        : timelineCountdownStyle
+                    }
+                  >
+                    {getDaysLeft(event.event_date)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </aside>
+  );
+
+  const calendarSection = (
+    <section style={calendarCardStyle}>
+      <div style={monthHeaderStyle}>
+        <button onClick={goToPreviousMonth} style={monthButtonStyle}>
+          ←
+        </button>
+
+        <h2 style={monthTitleStyle}>
+          {currentMonth.toLocaleString("en-US", {
+            month: "long",
+            year: "numeric",
+          })}
+        </h2>
+
+        <button onClick={goToNextMonth} style={monthButtonStyle}>
+          →
+        </button>
+      </div>
+
+      <div style={weekGridStyle}>
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          <p key={day} style={weekDayStyle}>
+            {day}
+          </p>
+        ))}
+      </div>
+
+      <div style={monthGridStyle}>
+        {monthDays.map((day, index) => {
+          if (!day) {
+            return (
+              <div
+                key={`empty-${index}`}
+                style={isMobile ? mobileEmptyDayStyle : emptyDayStyle}
+              />
+            );
+          }
+
+          const dateString = formatDate(day);
+          const dayEvents = events.filter(
+            (event) => event.event_date === dateString
+          );
+          const isSelected = selectedDate === dateString;
+          const isToday = getToday() === dateString;
+          const focusInfo = getFocusInfo(dateString, sessions);
+          const reflection = reflections.find(
+            (item) => item.entry_date === dateString
+          );
+          const isHovered = hoveredDate === dateString;
+          const mood = getMood(reflection?.mood || "");
+
+          return (
+            <button
+              key={dateString}
+              onMouseEnter={() => setHoveredDate(dateString)}
+              onMouseLeave={() => setHoveredDate(null)}
+              onClick={() => setSelectedDate(dateString)}
+              style={{
+                ...(isMobile ? mobileDayCellStyle : dayCellStyle),
+                ...(isSelected ? selectedDayCellStyle : {}),
+                ...(isToday ? todayCellStyle : {}),
+              }}
+            >
+              <div style={dayTopRowStyle}>
+                <span style={isMobile ? mobileDayNumberStyle : dayNumberStyle}>
+                  {day.getDate()}
+                </span>
+
+                {mood && (
+                  <span style={isMobile ? mobileMoodEmojiStyle : moodEmojiStyle}>
+                    {mood.emoji}
+                  </span>
+                )}
+              </div>
+
+              <div style={dayEventsStyle}>
+                {focusInfo.minutes > 0 && (
+                  <div style={isMobile ? mobileFocusMiniStyle : focusMiniStyle}>
+                    {isMobile
+                      ? `${focusInfo.minutes}m`
+                      : `${focusInfo.minutes} min focused`}
+                  </div>
+                )}
+
+                {dayEvents.slice(0, isMobile ? 1 : 2).map((event) => (
+                  <div
+                    key={event.id}
+                    style={{
+                      ...(isMobile ? mobileMiniEventStyle : miniEventStyle),
+                      background: getEventColor(event.event_type),
+                    }}
+                  >
+                    {event.title}
+                  </div>
+                ))}
+
+                {dayEvents.length > (isMobile ? 1 : 2) && (
+                  <p style={moreEventsStyle}>
+                    +{dayEvents.length - (isMobile ? 1 : 2)} more
+                  </p>
+                )}
+              </div>
+
+              {!isMobile && isHovered && (
+                <div style={calendarTooltipStyle}>
+                  <p style={tooltipTitleStyle}>{formatPrettyDate(dateString)}</p>
+
+                  <p style={tooltipTextStyle}>Focus: {focusInfo.minutes} min</p>
+
+                  <p style={tooltipTextStyle}>Sessions: {focusInfo.sessions}</p>
+
+                  <p style={tooltipTextStyle}>
+                    Mood:{" "}
+                    {mood ? `${mood.emoji} ${mood.label}` : "Not recorded"}
+                  </p>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+
+  const formSection = (
+    <section style={formCardStyle}>
+      <p style={smallCapsStyle}>Add a Moment</p>
+      <h2 style={sideTitleStyle}>New Event</h2>
+
+      <label style={fieldLabelStyle}>Date</label>
+      <input
+        type="date"
+        value={selectedDate}
+        onChange={(e) => setSelectedDate(e.target.value)}
+        style={inputStyle}
+      />
+
+      <label style={fieldLabelStyle}>Title</label>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Math test"
+        style={inputStyle}
+      />
+
+      <label style={fieldLabelStyle}>Time</label>
+      <input
+        value={eventTime}
+        onChange={(e) => setEventTime(e.target.value)}
+        placeholder="18:00"
+        style={inputStyle}
+      />
+
+      <label style={fieldLabelStyle}>Type</label>
+      <select
+        value={eventType}
+        onChange={(e) => setEventType(e.target.value)}
+        style={inputStyle}
+      >
+        <option value="test">Test</option>
+        <option value="deadline">Deadline</option>
+        <option value="study">Study</option>
+        <option value="event">Event</option>
+      </select>
+
+      <label style={fieldLabelStyle}>Notes</label>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Unit 5 review"
+        style={textareaStyle}
+      />
+
+      <button onClick={addEvent} style={buttonStyle}>
+        Save Event
+      </button>
+    </section>
+  );
+  const selectedDaySection = (
+    <section style={selectedCardStyle}>
+      <p style={smallCapsStyle}>Selected Day</p>
+      <h2 style={selectedDateStyle}>{formatPrettyDate(selectedDate)}</h2>
+
+      <div style={isMobile ? mobileSelectedInnerGridStyle : selectedInnerGridStyle}>
+        <div style={{ minWidth: 0 }}>
+          {selectedEvents.length === 0 ? (
+            <p style={mutedStyle}>No events on this day.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "12px" }}>
+              {selectedEvents.map((event) => (
+                <div
+                  key={event.id}
+                  style={isMobile ? mobileEventCardStyle : eventCardStyle}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <p style={eventTitleStyle}>{event.title}</p>
+
+                    <p style={mutedStyle}>
+                      {event.event_time || "All day"} · {event.event_type}
+                    </p>
+
+                    {event.notes && <p style={notesStyle}>{event.notes}</p>}
+                  </div>
+
+                  <button
+                    onClick={() => deleteEvent(event.id)}
+                    style={deleteButtonStyle}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={journalBoxStyle}>
+          <p style={smallCapsStyle}>Daily Journal</p>
+
+          <p style={journalPromptStyle}>How did this day feel?</p>
+
+          <div style={moodGridStyle}>
+            {moods.map((mood) => (
+              <button
+                key={mood.label}
+                onClick={() => setSelectedMood(mood.label)}
+                style={{
+                  ...moodButtonStyle,
+                  ...(selectedMood === mood.label ? activeMoodButtonStyle : {}),
+                }}
+              >
+                <span style={moodChoiceEmojiStyle}>{mood.emoji}</span>
+                <span>{mood.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={journalNote}
+            onChange={(e) => setJournalNote(e.target.value)}
+            placeholder="Write a few lines about today..."
+            style={journalTextareaStyle}
+          />
+
+          <button onClick={saveReflection} style={buttonStyle}>
+            Save Journal
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 
   return (
     <main style={pageStyle}>
@@ -253,8 +587,8 @@ export default function CalendarPage() {
         }}
       />
 
-      <div style={contentWrapStyle}>
-        <header style={headerStyle}>
+      <div style={isMobile ? mobileContentWrapStyle : contentWrapStyle}>
+        <header style={isMobile ? mobileHeaderStyle : headerStyle}>
           <div>
             <p style={labelStyle}>FocusForge Calendar</p>
             <h1 style={titleStyle}>Important Days</h1>
@@ -273,311 +607,26 @@ export default function CalendarPage() {
           </nav>
         </header>
 
-        <section style={topGridStyle}>
-          <section style={calendarCardStyle}>
-            <div style={monthHeaderStyle}>
-              <button onClick={goToPreviousMonth} style={monthButtonStyle}>
-                ←
-              </button>
-
-              <h2 style={monthTitleStyle}>
-                {currentMonth.toLocaleString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </h2>
-
-              <button onClick={goToNextMonth} style={monthButtonStyle}>
-                →
-              </button>
-            </div>
-
-            <div style={weekGridStyle}>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <p key={day} style={weekDayStyle}>
-                  {day}
-                </p>
-              ))}
-            </div>
-
-            <div style={monthGridStyle}>
-              {monthDays.map((day, index) => {
-                if (!day) {
-                  return <div key={`empty-${index}`} style={emptyDayStyle} />;
-                }
-
-                const dateString = formatDate(day);
-                const dayEvents = events.filter(
-                  (event) => event.event_date === dateString
-                );
-                const isSelected = selectedDate === dateString;
-                const isToday = getToday() === dateString;
-                const focusInfo = getFocusInfo(dateString, sessions);
-                const reflection = reflections.find(
-                  (item) => item.entry_date === dateString
-                );
-                const isHovered = hoveredDate === dateString;
-                const mood = getMood(reflection?.mood || "");
-
-                return (
-                  <button
-                    key={dateString}
-                    onMouseEnter={() => setHoveredDate(dateString)}
-                    onMouseLeave={() => setHoveredDate(null)}
-                    onClick={() => setSelectedDate(dateString)}
-                    style={{
-                      ...dayCellStyle,
-                      ...(isSelected ? selectedDayCellStyle : {}),
-                      ...(isToday ? todayCellStyle : {}),
-                    }}
-                  >
-                    <div style={dayTopRowStyle}>
-                      <span style={dayNumberStyle}>{day.getDate()}</span>
-
-                      {mood && <span style={moodEmojiStyle}>{mood.emoji}</span>}
-                    </div>
-
-                    <div style={dayEventsStyle}>
-                      {focusInfo.minutes > 0 && (
-                        <div style={focusMiniStyle}>
-                          {focusInfo.minutes} min focused
-                        </div>
-                      )}
-
-                      {dayEvents.slice(0, 2).map((event) => (
-                        <div
-                          key={event.id}
-                          style={{
-                            ...miniEventStyle,
-                            background: getEventColor(event.event_type),
-                          }}
-                        >
-                          {event.title}
-                        </div>
-                      ))}
-
-                      {dayEvents.length > 2 && (
-                        <p style={moreEventsStyle}>
-                          +{dayEvents.length - 2} more
-                        </p>
-                      )}
-                    </div>
-
-                    {isHovered && (
-                      <div style={calendarTooltipStyle}>
-                        <p style={tooltipTitleStyle}>
-                          {formatPrettyDate(dateString)}
-                        </p>
-
-                        <p style={tooltipTextStyle}>
-                          Focus: {focusInfo.minutes} min
-                        </p>
-
-                        <p style={tooltipTextStyle}>
-                          Sessions: {focusInfo.sessions}
-                        </p>
-
-                        <p style={tooltipTextStyle}>
-                          Mood:{" "}
-                          {mood
-                            ? `${mood.emoji} ${mood.label}`
-                            : "Not recorded"}
-                        </p>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+        {isMobile ? (
+          <section style={mobileStackStyle}>
+            {countdownSection}
+            {calendarSection}
+            {formSection}
+            {selectedDaySection}
           </section>
+        ) : (
+          <>
+            <section style={topGridStyle}>
+              {calendarSection}
+              {countdownSection}
+            </section>
 
-          <aside style={countdownCardStyle}>
-            <p style={smallCapsStyle}>Coming Up</p>
-            <h2 style={sideTitleStyle}>Countdown</h2>
-
-            {!nextBigEvent ? (
-              <p style={mutedStyle}>No upcoming tests or deadlines.</p>
-            ) : (
-              <>
-                <div style={heroEventStyle}>
-                  <p style={smallCapsStyle}>Next</p>
-
-                  <h3 style={heroEventTitleStyle}>{nextBigEvent.title}</h3>
-
-                  <p style={heroCountdownStyle}>
-                    {getDaysLeft(nextBigEvent.event_date)}
-                  </p>
-
-                  <p style={mutedStyle}>
-                    {formatPrettyDate(nextBigEvent.event_date)}
-                    {nextBigEvent.event_time
-                      ? ` · ${nextBigEvent.event_time}`
-                      : ""}
-                  </p>
-
-                  <span
-                    style={{
-                      ...typePillStyle,
-                      background: getEventColor(nextBigEvent.event_type),
-                    }}
-                  >
-                    {nextBigEvent.event_type}
-                  </span>
-                </div>
-
-                {laterEvents.length > 0 && (
-                  <div style={timelineStyle}>
-                    <p style={smallCapsStyle}>Later</p>
-
-                    {laterEvents.map((event) => (
-                      <div key={event.id} style={timelineItemStyle}>
-                        <div>
-                          <p style={timelineTitleStyle}>{event.title}</p>
-                          <p style={mutedStyle}>
-                            {formatPrettyDate(event.event_date)}
-                          </p>
-                        </div>
-
-                        <p style={timelineCountdownStyle}>
-                          {getDaysLeft(event.event_date)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </aside>
-        </section>
-
-        <section style={bottomGridStyle}>
-          <section style={formCardStyle}>
-            <p style={smallCapsStyle}>Add a Moment</p>
-            <h2 style={sideTitleStyle}>New Event</h2>
-
-            <label style={fieldLabelStyle}>Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              style={inputStyle}
-            />
-
-            <label style={fieldLabelStyle}>Title</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Math test"
-              style={inputStyle}
-            />
-
-            <label style={fieldLabelStyle}>Time</label>
-            <input
-              value={eventTime}
-              onChange={(e) => setEventTime(e.target.value)}
-              placeholder="18:00"
-              style={inputStyle}
-            />
-
-            <label style={fieldLabelStyle}>Type</label>
-            <select
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="test">Test</option>
-              <option value="deadline">Deadline</option>
-              <option value="study">Study</option>
-              <option value="event">Event</option>
-            </select>
-
-            <label style={fieldLabelStyle}>Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Unit 5 review"
-              style={textareaStyle}
-            />
-
-            <button onClick={addEvent} style={buttonStyle}>
-              Save Event
-            </button>
-          </section>
-
-          <section style={selectedCardStyle}>
-            <p style={smallCapsStyle}>Selected Day</p>
-            <h2 style={selectedDateStyle}>{formatPrettyDate(selectedDate)}</h2>
-
-            <div style={selectedInnerGridStyle}>
-              <div>
-                {selectedEvents.length === 0 ? (
-                  <p style={mutedStyle}>No events on this day.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: "12px" }}>
-                    {selectedEvents.map((event) => (
-                      <div key={event.id} style={eventCardStyle}>
-                        <div>
-                          <p style={eventTitleStyle}>{event.title}</p>
-
-                          <p style={mutedStyle}>
-                            {event.event_time || "All day"} ·{" "}
-                            {event.event_type}
-                          </p>
-
-                          {event.notes && (
-                            <p style={notesStyle}>{event.notes}</p>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => deleteEvent(event.id)}
-                          style={deleteButtonStyle}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div style={journalBoxStyle}>
-                <p style={smallCapsStyle}>Daily Journal</p>
-
-                <p style={journalPromptStyle}>How did this day feel?</p>
-
-                <div style={moodGridStyle}>
-                  {moods.map((mood) => (
-                    <button
-                      key={mood.label}
-                      onClick={() => setSelectedMood(mood.label)}
-                      style={{
-                        ...moodButtonStyle,
-                        ...(selectedMood === mood.label
-                          ? activeMoodButtonStyle
-                          : {}),
-                      }}
-                    >
-                      <span style={moodChoiceEmojiStyle}>{mood.emoji}</span>
-                      <span>{mood.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  value={journalNote}
-                  onChange={(e) => setJournalNote(e.target.value)}
-                  placeholder="Write a few lines about today..."
-                  style={journalTextareaStyle}
-                />
-
-                <button onClick={saveReflection} style={buttonStyle}>
-                  Save Journal
-                </button>
-              </div>
-            </div>
-          </section>
-        </section>
+            <section style={bottomGridStyle}>
+              {formSection}
+              {selectedDaySection}
+            </section>
+          </>
+        )}
       </div>
     </main>
   );
@@ -662,7 +711,6 @@ function getEventColor(type: string | null) {
   if (type === "event") return "rgba(213, 169, 102, 0.3)";
   return "rgba(241,232,218,0.16)";
 }
-
 const pageStyle = {
   position: "relative" as const,
   minHeight: "100vh",
@@ -679,11 +727,27 @@ const contentWrapStyle = {
   padding: "38px 52px 90px",
 };
 
+const mobileContentWrapStyle = {
+  position: "relative" as const,
+  zIndex: 10,
+  minHeight: "100vh",
+  width: "100%",
+  boxSizing: "border-box" as const,
+  padding: "26px 16px 80px",
+};
+
 const headerStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
   marginBottom: "34px",
+};
+
+const mobileHeaderStyle = {
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: "16px",
+  marginBottom: "24px",
 };
 
 const labelStyle = {
@@ -696,7 +760,7 @@ const labelStyle = {
 
 const titleStyle = {
   margin: "8px 0 0",
-  fontSize: "clamp(2.4rem,4vw,4rem)",
+  fontSize: "clamp(2.6rem, 9vw, 4rem)",
   fontWeight: 300,
   lineHeight: 1,
   color: "rgba(241,232,218,0.9)",
@@ -705,6 +769,7 @@ const titleStyle = {
 const navStyle = {
   display: "flex",
   gap: "18px",
+  flexWrap: "wrap" as const,
 };
 
 const linkStyle = {
@@ -729,12 +794,20 @@ const bottomGridStyle = {
   maxWidth: "1320px",
 };
 
+const mobileStackStyle = {
+  display: "grid",
+  gap: "18px",
+  width: "100%",
+};
+
 const glassCardStyle = {
+  minWidth: 0,
   borderRadius: "28px",
   border: "1px solid rgba(241,232,218,0.15)",
   background: "rgba(10,8,6,0.3)",
   backdropFilter: "blur(14px)",
   padding: "26px",
+  boxSizing: "border-box" as const,
 };
 
 const calendarCardStyle = { ...glassCardStyle };
@@ -747,12 +820,14 @@ const monthHeaderStyle = {
   alignItems: "center",
   justifyContent: "space-between",
   marginBottom: "22px",
+  gap: "10px",
 };
 
 const monthTitleStyle = {
-  fontSize: "2rem",
+  fontSize: "clamp(1.65rem, 6vw, 2rem)",
   fontWeight: 300,
   margin: 0,
+  textAlign: "center" as const,
 };
 
 const monthButtonStyle = {
@@ -764,34 +839,41 @@ const monthButtonStyle = {
   color: "rgba(241,232,218,0.82)",
   cursor: "pointer",
   fontSize: "18px",
+  flexShrink: 0,
 };
 
 const weekGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gap: "8px",
+  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+  gap: "6px",
   marginBottom: "9px",
 };
 
 const weekDayStyle = {
   textAlign: "center" as const,
   color: "rgba(241,232,218,0.42)",
-  fontSize: "12px",
-  letterSpacing: "0.08em",
+  fontSize: "11px",
+  letterSpacing: "0.05em",
+  margin: 0,
 };
 
 const monthGridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gap: "8px",
+  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+  gap: "6px",
 };
 
 const emptyDayStyle = {
   minHeight: "96px",
 };
 
+const mobileEmptyDayStyle = {
+  minHeight: "56px",
+};
+
 const dayCellStyle = {
   position: "relative" as const,
+  minWidth: 0,
   minHeight: "96px",
   borderRadius: "18px",
   border: "1px solid rgba(241,232,218,0.1)",
@@ -803,6 +885,14 @@ const dayCellStyle = {
   display: "flex",
   flexDirection: "column" as const,
   justifyContent: "space-between",
+  overflow: "hidden",
+};
+
+const mobileDayCellStyle = {
+  ...dayCellStyle,
+  minHeight: "56px",
+  borderRadius: "14px",
+  padding: "6px",
 };
 
 const selectedDayCellStyle = {
@@ -818,10 +908,15 @@ const dayTopRowStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
+  gap: "2px",
 };
 
 const dayNumberStyle = {
   fontSize: "16px",
+};
+
+const mobileDayNumberStyle = {
+  fontSize: "13px",
 };
 
 const moodEmojiStyle = {
@@ -829,9 +924,15 @@ const moodEmojiStyle = {
   opacity: 0.9,
 };
 
+const mobileMoodEmojiStyle = {
+  fontSize: "12px",
+  opacity: 0.9,
+};
+
 const dayEventsStyle = {
   display: "grid",
-  gap: "5px",
+  gap: "4px",
+  minWidth: 0,
 };
 
 const focusMiniStyle = {
@@ -840,6 +941,15 @@ const focusMiniStyle = {
   background: "rgba(241,232,218,0.14)",
   color: "rgba(241,232,218,0.78)",
   fontSize: "11px",
+  overflow: "hidden",
+  whiteSpace: "nowrap" as const,
+  textOverflow: "ellipsis",
+};
+
+const mobileFocusMiniStyle = {
+  ...focusMiniStyle,
+  padding: "3px 4px",
+  fontSize: "9px",
 };
 
 const miniEventStyle = {
@@ -852,10 +962,16 @@ const miniEventStyle = {
   textOverflow: "ellipsis",
 };
 
+const mobileMiniEventStyle = {
+  ...miniEventStyle,
+  padding: "3px 4px",
+  fontSize: "9px",
+};
+
 const moreEventsStyle = {
   margin: 0,
   color: "rgba(241,232,218,0.45)",
-  fontSize: "11px",
+  fontSize: "10px",
 };
 
 const calendarTooltipStyle = {
@@ -907,6 +1023,8 @@ const heroEventStyle = {
   border: "1px solid rgba(241,232,218,0.14)",
   background: "rgba(255,255,255,0.04)",
   padding: "22px",
+  minWidth: 0,
+  boxSizing: "border-box" as const,
 };
 
 const heroEventTitleStyle = {
@@ -914,12 +1032,23 @@ const heroEventTitleStyle = {
   fontWeight: 300,
   margin: "0 0 12px",
   lineHeight: 1,
+  overflowWrap: "break-word" as const,
+};
+
+const mobileHeroEventTitleStyle = {
+  ...heroEventTitleStyle,
+  fontSize: "2rem",
 };
 
 const heroCountdownStyle = {
   fontSize: "1.35rem",
   color: "rgba(241,232,218,0.9)",
   margin: "0 0 10px",
+};
+
+const mobileHeroCountdownStyle = {
+  ...heroCountdownStyle,
+  fontSize: "1.18rem",
 };
 
 const typePillStyle = {
@@ -947,16 +1076,30 @@ const timelineItemStyle = {
   paddingTop: "14px",
 };
 
+const mobileTimelineItemStyle = {
+  display: "grid",
+  gap: "6px",
+  borderTop: "1px solid rgba(241,232,218,0.12)",
+  paddingTop: "14px",
+};
+
 const timelineTitleStyle = {
   margin: 0,
   fontSize: "17px",
   color: "rgba(241,232,218,0.86)",
+  overflowWrap: "break-word" as const,
 };
 
 const timelineCountdownStyle = {
   margin: 0,
   color: "rgba(241,232,218,0.76)",
   whiteSpace: "nowrap" as const,
+};
+
+const mobileTimelineCountdownStyle = {
+  margin: 0,
+  color: "rgba(241,232,218,0.76)",
+  whiteSpace: "normal" as const,
 };
 
 const fieldLabelStyle = {
@@ -968,6 +1111,7 @@ const fieldLabelStyle = {
 
 const inputStyle = {
   width: "100%",
+  boxSizing: "border-box" as const,
   marginBottom: "14px",
   border: "1px solid rgba(241,232,218,0.16)",
   borderRadius: "15px",
@@ -985,6 +1129,7 @@ const textareaStyle = {
 
 const buttonStyle = {
   width: "100%",
+  boxSizing: "border-box" as const,
   borderRadius: "999px",
   border: "1px solid rgba(241,232,218,0.3)",
   background: "rgba(241,232,218,0.08)",
@@ -1006,11 +1151,20 @@ const selectedInnerGridStyle = {
   alignItems: "start",
 };
 
+const mobileSelectedInnerGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "18px",
+  alignItems: "start",
+};
+
 const journalBoxStyle = {
   borderRadius: "24px",
   border: "1px solid rgba(241,232,218,0.12)",
   background: "rgba(255,255,255,0.04)",
   padding: "22px",
+  minWidth: 0,
+  boxSizing: "border-box" as const,
 };
 
 const journalPromptStyle = {
@@ -1050,6 +1204,7 @@ const moodChoiceEmojiStyle = {
 
 const journalTextareaStyle = {
   width: "100%",
+  boxSizing: "border-box" as const,
   minHeight: "150px",
   marginBottom: "16px",
   border: "1px solid rgba(241,232,218,0.14)",
@@ -1070,21 +1225,35 @@ const eventCardStyle = {
   border: "1px solid rgba(241,232,218,0.12)",
   background: "rgba(255,255,255,0.04)",
   padding: "16px",
+  minWidth: 0,
+};
+
+const mobileEventCardStyle = {
+  display: "grid",
+  gap: "12px",
+  borderRadius: "20px",
+  border: "1px solid rgba(241,232,218,0.12)",
+  background: "rgba(255,255,255,0.04)",
+  padding: "16px",
+  minWidth: 0,
 };
 
 const eventTitleStyle = {
   margin: 0,
   fontSize: "1.25rem",
   color: "rgba(241,232,218,0.86)",
+  overflowWrap: "break-word" as const,
 };
 
 const mutedStyle = {
   color: "rgba(241,232,218,0.52)",
+  overflowWrap: "break-word" as const,
 };
 
 const notesStyle = {
   color: "rgba(241,232,218,0.58)",
   fontSize: "14px",
+  overflowWrap: "break-word" as const,
 };
 
 const deleteButtonStyle = {
@@ -1093,4 +1262,5 @@ const deleteButtonStyle = {
   color: "rgba(241,160,150,0.72)",
   cursor: "pointer",
   padding: 0,
+  width: "fit-content",
 };
