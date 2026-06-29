@@ -505,13 +505,17 @@ function taskButton(done: boolean) {
 
 const modalOverlay = {
   position: "fixed" as const,
-  inset: 0,
-  zIndex: 30,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 9999,
   width: "100vw",
   height: "100dvh",
-  display: "grid",
-  placeItems: "center",
-  background: "rgba(0,0,0,0.48)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "rgba(0,0,0,0.62)",
   backdropFilter: "blur(10px)",
   padding: "18px",
   boxSizing: "border-box" as const,
@@ -520,11 +524,11 @@ const modalOverlay = {
 
 const modalCard = {
   width: "min(440px, calc(100vw - 36px))",
-  maxHeight: "calc(100dvh - 60px)",
+  maxHeight: "calc(100dvh - 80px)",
   overflowY: "auto" as const,
   borderRadius: "30px",
   border: "1px solid rgba(241,232,218,0.3)",
-  background: "rgba(10,8,6,0.84)",
+  background: "rgba(10,8,6,0.9)",
   padding: "34px",
   boxSizing: "border-box" as const,
 };
