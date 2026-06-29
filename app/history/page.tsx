@@ -124,6 +124,7 @@ export default function HistoryPage() {
                   minutes: 0,
                   sessions: 0,
                 };
+
                 const isToday = dateString === getToday();
                 const isSelected = dateString === selectedDate;
                 const isHovered = hoveredDay === dateString;
@@ -140,6 +141,7 @@ export default function HistoryPage() {
                     onClick={() => setSelectedDate(dateString)}
                   >
                     <span className="day-number">{day.getDate()}</span>
+
                     {stats.minutes > 0 && (
                       <span className="day-minutes">{stats.minutes}m</span>
                     )}
@@ -182,10 +184,12 @@ export default function HistoryPage() {
                   <strong>{sessions.length}</strong>
                   <span>Sessions</span>
                 </div>
+
                 <div>
                   <strong>{totalHours}</strong>
                   <span>Hours</span>
                 </div>
+
                 <div>
                   <strong>{focusDays}</strong>
                   <span>Days</span>
@@ -255,20 +259,20 @@ export default function HistoryPage() {
           inset: 0;
           background-size: cover;
           background-position: center;
-          filter: blur(1.4px);
-          transform: scale(1.018);
+          filter: blur(1.1px);
+          transform: scale(1.012);
         }
 
         .overlay {
           position: fixed;
           inset: 0;
           background:
-            radial-gradient(circle at 45% 18%, rgba(241, 232, 218, 0.08), transparent 34%),
+            radial-gradient(circle at 42% 18%, rgba(241, 232, 218, 0.08), transparent 34%),
             linear-gradient(
               to bottom,
-              rgba(0, 0, 0, 0.5),
-              rgba(0, 0, 0, 0.58),
-              rgba(0, 0, 0, 0.72)
+              rgba(0, 0, 0, 0.52),
+              rgba(0, 0, 0, 0.6),
+              rgba(0, 0, 0, 0.74)
             );
         }
 
@@ -318,8 +322,8 @@ export default function HistoryPage() {
 
         .glass {
           border: 1px solid rgba(241, 232, 218, 0.15);
-          background: rgba(10, 8, 6, 0.34);
-          backdrop-filter: blur(16px);
+          background: rgba(10, 8, 6, 0.35);
+          backdrop-filter: blur(14px);
           box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
         }
 
@@ -625,19 +629,19 @@ export default function HistoryPage() {
 
         @media (max-width: 900px) {
           .content {
-            width: min(94%, 540px);
-            padding: 18px 0 calc(env(safe-area-inset-bottom) + 76px);
+            width: 100%;
+            padding: 18px 14px calc(env(safe-area-inset-bottom) + 82px);
           }
 
           .header {
             flex-direction: column;
-            gap: 10px;
-            margin-bottom: 14px;
+            gap: 12px;
+            margin-bottom: 18px;
           }
 
           .header h1 {
             margin-top: 6px;
-            font-size: clamp(2.6rem, 15vw, 4rem);
+            font-size: clamp(3.2rem, 17vw, 4.7rem);
           }
 
           .label {
@@ -646,56 +650,44 @@ export default function HistoryPage() {
           }
 
           .nav {
-            gap: 18px;
+            gap: 22px;
           }
 
           .nav a {
-            font-size: 15px;
+            font-size: 16px;
           }
 
           .history-layout {
             display: flex;
             flex-direction: column;
+            width: 100%;
             gap: 18px;
           }
 
           .side-column {
             display: flex;
             flex-direction: column;
+            width: 100%;
             gap: 18px;
           }
 
           .rhythm-card,
-          .sessions-card,
-          .journey-card {
-            border-radius: 24px;
-            padding: 18px;
-          }
-
-          .rhythm-card {
-            order: 1;
-          }
-
-          .side-column {
-            order: 2;
-          }
-
-          .journey-card {
-            order: 1;
-          }
-
+          .journey-card,
           .sessions-card {
-            order: 2;
-          }
-
-          .card-top,
-          .sessions-top {
-            margin-bottom: 14px;
+            width: 100%;
+            max-width: none;
+            border-radius: 28px;
+            padding: 20px;
           }
 
           .card-top {
             flex-direction: column;
             gap: 4px;
+            margin-bottom: 16px;
+          }
+
+          .sessions-top {
+            margin-bottom: 16px;
           }
 
           .hint {
@@ -703,100 +695,83 @@ export default function HistoryPage() {
           }
 
           .card-top h2,
-          .sessions-top h2 {
-            font-size: 2.15rem;
-          }
-
+          .sessions-top h2,
           .journey-card h2 {
-            font-size: 2.15rem;
+            font-size: 2.25rem;
           }
 
           .journey-card p:last-child {
             font-size: 1rem;
           }
 
+          .week-row,
           .heatmap {
-            gap: 6px;
-          }
-
-          .week-row {
-            gap: 6px;
+            width: 100%;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 7px;
           }
 
           .week-row span {
-            font-size: 12px;
+            font-size: 13px;
           }
 
           .heat-cell {
+            width: 100%;
             aspect-ratio: 1 / 1;
             min-height: 0;
-            border-radius: 11px;
+            border-radius: 12px;
             padding: 6px;
           }
 
           .day-number {
-            font-size: 12px;
+            font-size: 13px;
           }
 
           .day-minutes {
-            font-size: 9px;
+            display: none;
           }
 
           .tooltip {
             display: none;
           }
 
-          .session-row {
-            padding: 9px 11px;
-            border-radius: 15px;
+          .legend {
+            justify-content: center;
+            margin-top: 18px;
+          }
+
+          .summary {
+            grid-template-columns: repeat(3, 1fr);
           }
         }
 
         @media (max-width: 420px) {
           .content {
-            width: min(94%, 390px);
-            padding-top: 16px;
-          }
-
-          .header {
-            margin-bottom: 12px;
-          }
-
-          .header h1 {
-            font-size: clamp(2.55rem, 14vw, 3.65rem);
-          }
-
-          .nav a {
-            font-size: 14px;
+            padding-left: 14px;
+            padding-right: 14px;
           }
 
           .rhythm-card,
           .journey-card,
           .sessions-card {
-            padding: 16px;
+            padding: 18px;
+            border-radius: 26px;
+          }
+
+          .week-row,
+          .heatmap {
+            gap: 6px;
+          }
+
+          .heat-cell {
+            border-radius: 11px;
+            padding: 5px;
           }
 
           .card-top h2,
           .sessions-top h2,
           .journey-card h2 {
-            font-size: 2rem;
-          }
-
-          .heatmap {
-            gap: 5px;
-          }
-
-          .week-row {
-            gap: 5px;
-          }
-
-          .heat-cell {
-            border-radius: 9px;
-            padding: 5px;
-          }
-
-          .day-minutes {
-            display: none;
+            font-size: 2.05rem;
           }
 
           .selected-total {
