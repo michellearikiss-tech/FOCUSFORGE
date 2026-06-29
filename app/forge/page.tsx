@@ -507,19 +507,24 @@ const modalOverlay = {
   position: "fixed" as const,
   inset: 0,
   zIndex: 30,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+  width: "100vw",
+  height: "100dvh",
+  display: "grid",
+  placeItems: "center",
   background: "rgba(0,0,0,0.48)",
   backdropFilter: "blur(10px)",
   padding: "18px",
+  boxSizing: "border-box" as const,
+  overflow: "hidden",
 };
 
 const modalCard = {
   width: "min(440px, calc(100vw - 36px))",
+  maxHeight: "calc(100dvh - 60px)",
+  overflowY: "auto" as const,
   borderRadius: "30px",
   border: "1px solid rgba(241,232,218,0.3)",
-  background: "rgba(10,8,6,0.8)",
+  background: "rgba(10,8,6,0.84)",
   padding: "34px",
   boxSizing: "border-box" as const,
 };
