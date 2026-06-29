@@ -15,18 +15,21 @@ type AudioContextType = {
   stopSounds: () => void;
 };
 
-const AudioContext = createContext<AudioContextType | null>(null);
+const FocusAudioContext = createContext<AudioContextType | null>(null);
 
 export function AudioProvider({ children }: { children: ReactNode }) {
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const noiseSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const musicSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const noiseGainRef = useRef<GainNode | null>(null);
-  const musicGainRef = useRef<GainNode | null>(null);
+  const webAudioRef = useRef<AudioContext | null>(null);
 
   const noiseRef = useRef<HTMLAudioElement | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
-  const fadeTimerRef = useRef<number | null>(null);
+
+  const noiseGainRef = useRef<GainNode | null>(null);
+  const musicGainRef = useRef<GainNode | null>(null);
+
+  const noiseSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const musicSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  const loopTimerRef = useRef<number | null>(null);
 
   const [currentScene, setCurrentScene] = useState<SoundType | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,19 +50,20 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     stars: "/audio/stars-music.mp3",
   };
 
-  function getAudioContext() {
-    if (!audioContextRef.current) {
-      const AudioContextClass =
-        window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  function getWebAudio() {
+    if (!webAudioRef.current) {
+      const AudioClass =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
 
-      audioContextRef.current = new AudioContextClass();
+      webAudioRef.current = new AudioClass();
     }
 
-    return audioContextRef.current;
+    return webAudioRef.current;
   }
 
-  async function resumeAudioContext() {
-    const context = getAudioContext();
+  async function unlockAudio() {
+    const context = getWebAudio();
 
     if (context.state === "suspended") {
       await context.resume();
@@ -68,13 +72,42 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     return context;
   }
 
-  function connectAudio(audio: HTMLAudioElement, type: "noise" | "music") {
-    const context = getAudioContext();
-    const gain = context.createGain();
+  function clearLoopTimer() {
+    if (loopTimerRef.current) {
+      window.clearInterval(loopTimerRef.current);
+      loopTimerRef.current = null;
+    }
+  }
 
-    gain.gain.value = 0;
+  function cleanupAudio() {
+    clearLoopTimer();
+
+    noiseRef.current?.pause();
+    musicRef.current?.pause();
+
+    noiseRef.current = null;
+    musicRef.current = null;
+
+    noiseSourceRef.current?.disconnect();
+    musicSourceRef.current?.disconnect();
+
+    noiseGainRef.current?.disconnect();
+    musicGainRef.current?.disconnect();
+
+    noiseSourceRef.current = null;
+    musicSourceRef.current = null;
+    noiseGainRef.current = null;
+    musicGainRef.current = null;
+  }
+
+  function connectWithGain(audio: HTMLAudioElement, type: "noise" | "music") {
+    const context = getWebAudio();
 
     const source = context.createMediaElementSource(audio);
+    const gain = context.createGain();
+
+    gain.gain.value = type === "noise" ? noiseVolume : musicVolume;
+
     source.connect(gain);
     gain.connect(context.destination);
 
@@ -91,167 +124,72 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     return gain;
   }
 
-  function clearFadeTimer() {
-    if (fadeTimerRef.current) {
-      window.clearInterval(fadeTimerRef.current);
-      fadeTimerRef.current = null;
-    }
-  }
-
-  function fadeGain(gain: GainNode | null, from: number, to: number, duration = 1800) {
-    if (!gain) return;
-
-    const context = getAudioContext();
-    const now = context.currentTime;
-
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(from, now);
-    gain.gain.linearRampToValueAtTime(to, now + duration / 1000);
-  }
-
-  function stopSounds() {
-    clearFadeTimer();
-
-    const currentNoise = noiseRef.current;
-    const currentMusic = musicRef.current;
-
-    fadeGain(noiseGainRef.current, noiseGainRef.current?.gain.value || 0, 0, 1200);
-    fadeGain(musicGainRef.current, musicGainRef.current?.gain.value || 0, 0, 1200);
-
-    window.setTimeout(() => {
-      currentNoise?.pause();
-      currentMusic?.pause();
-
-      noiseRef.current = null;
-      musicRef.current = null;
-      noiseSourceRef.current = null;
-      musicSourceRef.current = null;
-      noiseGainRef.current = null;
-      musicGainRef.current = null;
-    }, 1300);
-
-    setIsPlaying(false);
-  }
-
   async function startSounds(scene: SoundType) {
-    stopSounds();
+    cleanupAudio();
 
-    const context = await resumeAudioContext();
+    await unlockAudio();
 
     const noise = new Audio(noiseFiles[scene]);
     noise.loop = true;
-    noise.crossOrigin = "anonymous";
+    noise.preload = "auto";
+    noise.volume = 1;
 
     const music = new Audio(musicFiles[scene]);
-    music.loop = false;
-    music.crossOrigin = "anonymous";
+    music.loop = true;
+    music.preload = "auto";
+    music.volume = 1;
 
     noiseRef.current = noise;
     musicRef.current = music;
 
-    const noiseGain = connectAudio(noise, "noise");
-    const musicGain = connectAudio(music, "music");
+    connectWithGain(noise, "noise");
+    connectWithGain(music, "music");
 
     try {
       await noise.play();
-      fadeGain(noiseGain, 0, noiseVolume, 1800);
     } catch (error) {
       console.error("Noise play failed:", error);
     }
 
     try {
       await music.play();
-      fadeGain(musicGain, 0, musicVolume, 2200);
     } catch (error) {
       console.error("Music play failed:", error);
     }
-
-    clearFadeTimer();
-
-    fadeTimerRef.current = window.setInterval(() => {
-      const currentMusic = musicRef.current;
-      const currentGain = musicGainRef.current;
-
-      if (!currentMusic || !currentGain || !currentMusic.duration) return;
-
-      const secondsLeft = currentMusic.duration - currentMusic.currentTime;
-
-      if (secondsLeft <= 8) {
-        const nextMusic = new Audio(musicFiles[scene]);
-        nextMusic.loop = false;
-        nextMusic.crossOrigin = "anonymous";
-
-        const nextGain = context.createGain();
-        nextGain.gain.value = 0;
-
-        const nextSource = context.createMediaElementSource(nextMusic);
-        nextSource.connect(nextGain);
-        nextGain.connect(context.destination);
-
-        nextMusic.volume = 1;
-
-        musicRef.current = nextMusic;
-        musicSourceRef.current = nextSource;
-        musicGainRef.current = nextGain;
-
-        nextMusic.play().then(() => {
-          fadeGain(currentGain, currentGain.gain.value, 0, 8000);
-          fadeGain(nextGain, 0, musicVolume, 8000);
-
-          window.setTimeout(() => {
-            currentMusic.pause();
-          }, 8200);
-        });
-
-        clearFadeTimer();
-
-        fadeTimerRef.current = window.setInterval(() => {
-          const activeMusic = musicRef.current;
-          if (!activeMusic || !activeMusic.duration) return;
-
-          const left = activeMusic.duration - activeMusic.currentTime;
-
-          if (left <= 8) {
-            startSounds(scene);
-          }
-        }, 1000);
-      }
-    }, 1000);
 
     setCurrentScene(scene);
     setIsPlaying(true);
   }
 
+  function stopSounds() {
+    cleanupAudio();
+    setIsPlaying(false);
+  }
+
   function setNoiseVolume(volume: number) {
     setNoiseVolumeState(volume);
 
+    const context = getWebAudio();
+
     if (noiseGainRef.current) {
-      const context = getAudioContext();
       noiseGainRef.current.gain.cancelScheduledValues(context.currentTime);
       noiseGainRef.current.gain.setValueAtTime(volume, context.currentTime);
-    }
-
-    if (noiseRef.current) {
-      noiseRef.current.volume = 1;
     }
   }
 
   function setMusicVolume(volume: number) {
     setMusicVolumeState(volume);
 
+    const context = getWebAudio();
+
     if (musicGainRef.current) {
-      const context = getAudioContext();
       musicGainRef.current.gain.cancelScheduledValues(context.currentTime);
       musicGainRef.current.gain.setValueAtTime(volume, context.currentTime);
-    }
-
-    if (musicRef.current) {
-      musicRef.current.volume = 1;
     }
   }
 
   return (
-    <AudioContext.Provider
+    <FocusAudioContext.Provider
       value={{
         currentScene,
         isPlaying,
@@ -264,12 +202,12 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </AudioContext.Provider>
+    </FocusAudioContext.Provider>
   );
 }
 
 export function useAudio() {
-  const context = useContext(AudioContext);
+  const context = useContext(FocusAudioContext);
 
   if (!context) {
     throw new Error("useAudio must be inside AudioProvider");
