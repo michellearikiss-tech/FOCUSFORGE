@@ -516,7 +516,7 @@ const modalOverlay = {
 };
 
 const modalCard = {
-  width: "min(440px, 100%)",
+  width: "min(440px, calc(100vw - 36px))",
   borderRadius: "30px",
   border: "1px solid rgba(241,232,218,0.3)",
   background: "rgba(10,8,6,0.8)",
@@ -538,6 +538,9 @@ const modalTitle = {
   fontSize: "2.5rem",
   fontWeight: 300,
   margin: "14px 0 8px",
+  color: "rgba(241,232,218,0.96)",
+  lineHeight: 1,
+  wordBreak: "break-word" as const,
 };
 
 const modalText = {
