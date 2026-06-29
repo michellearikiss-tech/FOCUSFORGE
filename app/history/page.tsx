@@ -112,11 +112,9 @@ export default function HistoryPage() {
             </div>
 
             <div className="week-row">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                (day) => (
-                  <span key={day}>{day}</span>
-                )
-              )}
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
             </div>
 
             <div className="heatmap">
@@ -228,7 +226,7 @@ export default function HistoryPage() {
                         <div className="session-meta">
                           <span>{formatTime(session.completed_at)}</span>
                           <span>
-                            {getSceneIcon(session.scene || session.space)} {" "}
+                            {getSceneIcon(session.scene || session.space)}{" "}
                             {formatScene(session.scene || session.space)}
                           </span>
                         </div>
@@ -249,6 +247,7 @@ export default function HistoryPage() {
           overflow-x: hidden;
           color: rgba(241, 232, 218, 0.9);
           font-family: Cormorant Garamond, Georgia, serif;
+          background: #0b0807;
         }
 
         .background {
@@ -263,12 +262,14 @@ export default function HistoryPage() {
         .overlay {
           position: fixed;
           inset: 0;
-          background: linear-gradient(
-            to bottom,
-            rgba(0, 0, 0, 0.42),
-            rgba(0, 0, 0, 0.52),
-            rgba(0, 0, 0, 0.66)
-          );
+          background:
+            radial-gradient(circle at 45% 18%, rgba(241, 232, 218, 0.08), transparent 34%),
+            linear-gradient(
+              to bottom,
+              rgba(0, 0, 0, 0.5),
+              rgba(0, 0, 0, 0.58),
+              rgba(0, 0, 0, 0.72)
+            );
         }
 
         .content {
@@ -276,14 +277,14 @@ export default function HistoryPage() {
           z-index: 10;
           width: min(1220px, calc(100% - 54px));
           margin: 0 auto;
-          padding: 34px 0 72px;
+          padding: 28px 0 calc(env(safe-area-inset-bottom) + 76px);
         }
 
         .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 24px;
+          margin-bottom: 22px;
         }
 
         .header h1 {
@@ -317,7 +318,7 @@ export default function HistoryPage() {
 
         .glass {
           border: 1px solid rgba(241, 232, 218, 0.15);
-          background: rgba(10, 8, 6, 0.31);
+          background: rgba(10, 8, 6, 0.34);
           backdrop-filter: blur(16px);
           box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
         }
@@ -418,7 +419,9 @@ export default function HistoryPage() {
           flex-direction: column;
           justify-content: space-between;
           align-items: flex-start;
-          transition: transform 0.18s ease, box-shadow 0.18s ease,
+          transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
             border-color 0.18s ease;
         }
 
@@ -432,7 +435,8 @@ export default function HistoryPage() {
         }
 
         .heat-cell.selected {
-          box-shadow: 0 0 0 2px rgba(241, 232, 218, 0.74),
+          box-shadow:
+            0 0 0 2px rgba(241, 232, 218, 0.74),
             0 16px 32px rgba(0, 0, 0, 0.18);
         }
 
@@ -621,41 +625,51 @@ export default function HistoryPage() {
 
         @media (max-width: 900px) {
           .content {
-            width: min(100% - 28px, 580px);
-            padding: 24px 0 60px;
+            width: min(94%, 540px);
+            padding: 18px 0 calc(env(safe-area-inset-bottom) + 76px);
           }
 
           .header {
             flex-direction: column;
-            gap: 14px;
-            margin-bottom: 18px;
+            gap: 10px;
+            margin-bottom: 14px;
           }
 
           .header h1 {
-            font-size: 3.2rem;
+            margin-top: 6px;
+            font-size: clamp(2.6rem, 15vw, 4rem);
+          }
+
+          .label {
+            font-size: 10px;
+            letter-spacing: 0.22em;
           }
 
           .nav {
-            gap: 16px;
+            gap: 18px;
+          }
+
+          .nav a {
+            font-size: 15px;
           }
 
           .history-layout {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 18px;
           }
 
           .side-column {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 18px;
           }
 
           .rhythm-card,
           .sessions-card,
           .journey-card {
             border-radius: 24px;
-            padding: 17px;
+            padding: 18px;
           }
 
           .rhythm-card {
@@ -740,11 +754,26 @@ export default function HistoryPage() {
 
         @media (max-width: 420px) {
           .content {
-            width: min(100% - 22px, 420px);
+            width: min(94%, 390px);
+            padding-top: 16px;
+          }
+
+          .header {
+            margin-bottom: 12px;
+          }
+
+          .header h1 {
+            font-size: clamp(2.55rem, 14vw, 3.65rem);
           }
 
           .nav a {
             font-size: 14px;
+          }
+
+          .rhythm-card,
+          .journey-card,
+          .sessions-card {
+            padding: 16px;
           }
 
           .card-top h2,
