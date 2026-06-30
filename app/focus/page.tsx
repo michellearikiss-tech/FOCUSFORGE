@@ -170,8 +170,11 @@ export default function FocusPage() {
   const todayHours = Math.floor(journey.focusMinutes / 60);
   const todayMins = journey.focusMinutes % 60;
   const todayText =
-    todayHours > 0 ? `${todayHours}h ${todayMins}m` : `${journey.focusMinutes}m`;
-
+    journey.focusMinutes <= 0
+      ? "0 min"
+      : todayHours > 0
+        ? `${todayHours}h ${todayMins}m`
+        : `${journey.focusMinutes} min`;
   async function beginSession() {
     setMessage("");
     await startSounds(scene);
@@ -221,6 +224,8 @@ export default function FocusPage() {
       user_id: userId,
       task_name: task,
       duration_minutes: durationMinutes,
+      scene: setting,
+      space: setting,
     });
 
     if (error) {
@@ -228,7 +233,13 @@ export default function FocusPage() {
       setMessage("Session finished, but it could not be saved.");
       return;
     }
-
+    
+    setJourney((prev) => ({
+      focusMinutes: prev.focusMinutes + durationMinutes,
+      sessions: prev.sessions + 1,
+      completedTasks: prev.completedTasks,
+    }));
+    
     window.location.href = "/complete";
   }
 
@@ -809,12 +820,14 @@ export default function FocusPage() {
           justify-content: center;
         }
 
+        
         .journey-main {
-          margin: 8px 0;
-          font-family: Cormorant Garamond, Georgia, serif;
-          font-size: 2.2rem;
-          font-weight: 300;
-        }
+  margin: 8px 0;
+  font-family: ui-serif, Georgia, serif;
+  font-size: 2.05rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
 
         .journey-grid {
           display: grid;
@@ -851,66 +864,87 @@ export default function FocusPage() {
         }
 @media (min-width: 901px) and (max-width: 1400px) {
   .session-mode {
-    padding: 18px 28px;
+    padding: 12px 28px;
   }
 
   .session-screen {
-    height: calc(100svh - 36px);
+    height: calc(100dvh - 24px);
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 16px;
   }
 
   .timer-card {
-    padding: 16px 22px;
+    padding: 10px 22px;
     justify-content: center;
   }
 
   .timer-card .eyebrow {
-    margin-top: 0;
+    font-size: 9px;
+    margin: 0;
+  }
+
+  .timer-card .tiny-title {
+    margin-top: 6px;
+    font-size: 12px;
   }
 
   .timer-card h2 {
-    font-size: clamp(2.1rem, 4.5vw, 3.2rem);
-    margin: 4px 0 6px;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    margin: 2px 0 4px;
   }
 
   .circle-wrap {
-    width: min(340px, 34vw);
-    margin: 2px auto 10px;
+    width: min(300px, 29vw);
+    margin: 0 auto 6px;
   }
 
   .timer-text {
-    font-size: clamp(4.3rem, 8vw, 6.4rem);
+    font-size: clamp(3.8rem, 7vw, 5.8rem);
   }
 
   .session-hint {
-    margin-bottom: 10px;
+    margin: 0 0 8px;
+    font-size: 12px;
   }
 
   .main-control {
-    min-height: 42px;
+    min-height: 38px;
   }
 
   .secondary-controls {
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .secondary-controls button {
-    min-height: 34px;
+    min-height: 32px;
   }
 
   .side-panel {
-    grid-template-rows: 0.8fr 0.8fr 1fr;
-    gap: 10px;
+    grid-template-rows: 0.75fr 0.75fr 0.9fr;
+    gap: 8px;
   }
 
   .info-card {
-    padding: 13px 15px;
-    border-radius: 22px;
+    padding: 11px 14px;
+    border-radius: 20px;
+  }
+
+  .sound-stack {
+    gap: 8px;
+  }
+
+  .journey-main {
+    font-size: 1.8rem;
+    margin: 6px 0;
+  }
+
+  .journey-grid div {
+    padding: 7px;
   }
 
   .thought-card p:last-child {
-    font-size: 1.45rem;
+    font-size: 1.35rem;
+    margin-top: 8px;
   }
 }
         @media (max-width: 900px) {
