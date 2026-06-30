@@ -629,33 +629,47 @@ export default function HistoryPage() {
           text-decoration: none;
         }
 
-        @media (max-width: 1400px) {
+        
+  @media (min-width: 901px) and (max-width: 1400px) {
   .content {
-    width: min(92%, 920px);
-    padding: 24px 0 calc(env(safe-area-inset-bottom) + 80px);
+    width: min(96%, 1180px);
+    padding: 22px 0 calc(env(safe-area-inset-bottom) + 76px);
   }
 
   .history-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-  }
-
-  .side-column {
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 20px;
   }
 
   .rhythm-card,
   .journey-card,
   .sessions-card {
-    width: 100%;
+    padding: 22px;
+  }
+
+  .heatmap,
+  .week-row {
+    gap: 7px;
   }
 
   .heat-cell {
-    aspect-ratio: 1 / 0.82;
-    min-height: 70px;
+    min-height: 62px;
+    aspect-ratio: 1 / 0.78;
+  }
+
+  .tooltip {
+    min-width: 170px;
+    padding: 18px 20px;
+    border-radius: 18px;
+  }
+
+  .tooltip p {
+    font-size: 20px;
+  }
+
+  .tooltip span {
+    font-size: 15px;
   }
 }
 
@@ -676,59 +690,26 @@ export default function HistoryPage() {
     font-size: clamp(3.2rem, 17vw, 4.7rem);
   }
 
-  .label {
-    font-size: 10px;
-    letter-spacing: 0.22em;
-  }
-
-  .nav {
-    gap: 22px;
-  }
-
-  .nav a {
-    font-size: 16px;
+  .history-layout,
+  .side-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 18px;
   }
 
   .rhythm-card,
   .journey-card,
   .sessions-card {
+    width: 100%;
     border-radius: 28px;
     padding: 20px;
   }
 
-  .card-top {
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 16px;
-  }
-
-  .sessions-top {
-    margin-bottom: 16px;
-  }
-
-  .hint {
-    text-align: left;
-  }
-
-  .card-top h2,
-  .sessions-top h2,
-  .journey-card h2 {
-    font-size: 2.25rem;
-  }
-
-  .journey-card p:last-child {
-    font-size: 1rem;
-  }
-
   .week-row,
   .heatmap {
-    width: 100%;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 7px;
-  }
-
-  .week-row span {
-    font-size: 13px;
   }
 
   .heat-cell {
@@ -739,29 +720,34 @@ export default function HistoryPage() {
     padding: 6px;
   }
 
-  .day-number {
-    font-size: 13px;
-  }
-
-  .day-minutes {
-    display: none;
-  }
-
+  .day-minutes,
   .tooltip {
     display: none;
   }
 
   .legend {
     justify-content: center;
-    margin-top: 18px;
   }
 }
 
 @media (max-width: 420px) {
-  .content {
-    padding-left: 14px;
-    padding-right: 14px;
+  .rhythm-card,
+  .journey-card,
+  .sessions-card {
+    padding: 18px;
+    border-radius: 26px;
   }
+
+  .week-row,
+  .heatmap {
+    gap: 6px;
+  }
+
+  .heat-cell {
+    border-radius: 11px;
+    padding: 5px;
+  }
+}
 
   .rhythm-card,
   .journey-card,
