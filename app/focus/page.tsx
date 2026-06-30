@@ -849,7 +849,70 @@ export default function FocusPage() {
           font-weight: 300;
           color: rgba(244, 238, 228, 0.86);
         }
+@media (min-width: 901px) and (max-width: 1400px) {
+  .session-mode {
+    padding: 18px 28px;
+  }
 
+  .session-screen {
+    height: calc(100svh - 36px);
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 16px;
+  }
+
+  .timer-card {
+    padding: 16px 22px;
+    justify-content: center;
+  }
+
+  .timer-card .eyebrow {
+    margin-top: 0;
+  }
+
+  .timer-card h2 {
+    font-size: clamp(2.1rem, 4.5vw, 3.2rem);
+    margin: 4px 0 6px;
+  }
+
+  .circle-wrap {
+    width: min(340px, 34vw);
+    margin: 2px auto 10px;
+  }
+
+  .timer-text {
+    font-size: clamp(4.3rem, 8vw, 6.4rem);
+  }
+
+  .session-hint {
+    margin-bottom: 10px;
+  }
+
+  .main-control {
+    min-height: 42px;
+  }
+
+  .secondary-controls {
+    margin-top: 8px;
+  }
+
+  .secondary-controls button {
+    min-height: 34px;
+  }
+
+  .side-panel {
+    grid-template-rows: 0.8fr 0.8fr 1fr;
+    gap: 10px;
+  }
+
+  .info-card {
+    padding: 13px 15px;
+    border-radius: 22px;
+  }
+
+  .thought-card p:last-child {
+    font-size: 1.45rem;
+  }
+}
         @media (max-width: 900px) {
           nav {
             display: none;
