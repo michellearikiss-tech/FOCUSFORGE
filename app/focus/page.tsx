@@ -120,7 +120,7 @@ export default function FocusPage() {
       .from("study_sessions")
       .select("duration_minutes")
       .eq("user_id", currentUserId)
-      .gte("created_at", start.toISOString());
+      .gte("completed_at", start.toISOString());
 
     const { data: completedTasks } = await supabase
       .from("tasks")
@@ -170,11 +170,11 @@ export default function FocusPage() {
   const todayHours = Math.floor(journey.focusMinutes / 60);
   const todayMins = journey.focusMinutes % 60;
   const todayText =
-    journey.focusMinutes <= 0
-      ? "0 min"
-      : todayHours > 0
-        ? `${todayHours}h ${todayMins}m`
-        : `${journey.focusMinutes} min`;
+  journey.focusMinutes <= 0
+    ? "0 min"
+    : todayHours > 0
+      ? `${todayHours}h ${todayMins}m`
+      : `${journey.focusMinutes} min`;
   async function beginSession() {
     setMessage("");
     await startSounds(scene);
@@ -224,6 +224,7 @@ export default function FocusPage() {
       user_id: userId,
       task_name: task,
       duration_minutes: durationMinutes,
+      completed_at: new Date().toISOString(),
       scene: setting,
       space: setting,
     });
