@@ -454,33 +454,35 @@ export default function HistoryPage() {
           color: rgba(241, 232, 218, 0.62);
         }
 
-        .tooltip {
-          position: absolute;
-          left: 50%;
-          bottom: calc(100% + 10px);
-          transform: translateX(-50%);
-          z-index: 50;
-          min-width: 124px;
-          border-radius: 13px;
-          border: 1px solid rgba(241, 232, 218, 0.18);
-          background: rgba(12, 10, 8, 0.94);
-          padding: 9px 10px;
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-          pointer-events: none;
-          text-align: center;
-        }
+.tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 14px);
+  transform: translateX(-50%);
+  z-index: 50;
+  min-width: 150px;
+  border-radius: 18px;
+  border: 1px solid rgba(241, 232, 218, 0.2);
+  background: rgba(12, 10, 8, 0.95);
+  padding: 15px 18px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
+  pointer-events: none;
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
 
-        .tooltip p {
-          margin: 0 0 4px;
-          font-size: 14px;
-          color: rgba(241, 232, 218, 0.88);
-        }
+.tooltip p {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: rgba(241, 232, 218, 0.92);
+}
 
-        .tooltip span {
-          display: block;
-          font-size: 11px;
-          color: rgba(241, 232, 218, 0.56);
-        }
+.tooltip span {
+  display: block;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(241, 232, 218, 0.68);
+}
 
         .legend {
           display: flex;
@@ -627,7 +629,7 @@ export default function HistoryPage() {
           text-decoration: none;
         }
 
-        @media (max-width: 1280px) {
+        @media (max-width: 1400px) {
   .content {
     width: min(92%, 920px);
     padding: 24px 0 calc(env(safe-area-inset-bottom) + 80px);
