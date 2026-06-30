@@ -627,125 +627,168 @@ export default function HistoryPage() {
           text-decoration: none;
         }
 
-        @media (max-width: 900px) {
-          .content {
-            width: 100%;
-            padding: 18px 14px calc(env(safe-area-inset-bottom) + 82px);
-          }
+        @media (max-width: 1280px) {
+  .content {
+    width: min(92%, 920px);
+    padding: 24px 0 calc(env(safe-area-inset-bottom) + 80px);
+  }
 
-          .header {
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 18px;
-          }
+  .history-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
 
-          .header h1 {
-            margin-top: 6px;
-            font-size: clamp(3.2rem, 17vw, 4.7rem);
-          }
+  .side-column {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
 
-          .label {
-            font-size: 10px;
-            letter-spacing: 0.22em;
-          }
+  .rhythm-card,
+  .journey-card,
+  .sessions-card {
+    width: 100%;
+  }
 
-          .nav {
-            gap: 22px;
-          }
+  .heat-cell {
+    aspect-ratio: 1 / 0.82;
+    min-height: 70px;
+  }
+}
 
-          .nav a {
-            font-size: 16px;
-          }
+@media (max-width: 900px) {
+  .content {
+    width: 100%;
+    padding: 18px 14px calc(env(safe-area-inset-bottom) + 82px);
+  }
 
-          .history-layout {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            gap: 18px;
-          }
+  .header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
 
-          .side-column {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            gap: 18px;
-          }
+  .header h1 {
+    margin-top: 6px;
+    font-size: clamp(3.2rem, 17vw, 4.7rem);
+  }
 
-          .rhythm-card,
-          .journey-card,
-          .sessions-card {
-            width: 100%;
-            max-width: none;
-            border-radius: 28px;
-            padding: 20px;
-          }
+  .label {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+  }
 
-          .card-top {
-            flex-direction: column;
-            gap: 4px;
-            margin-bottom: 16px;
-          }
+  .nav {
+    gap: 22px;
+  }
 
-          .sessions-top {
-            margin-bottom: 16px;
-          }
+  .nav a {
+    font-size: 16px;
+  }
 
-          .hint {
-            text-align: left;
-          }
+  .rhythm-card,
+  .journey-card,
+  .sessions-card {
+    border-radius: 28px;
+    padding: 20px;
+  }
 
-          .card-top h2,
-          .sessions-top h2,
-          .journey-card h2 {
-            font-size: 2.25rem;
-          }
+  .card-top {
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
 
-          .journey-card p:last-child {
-            font-size: 1rem;
-          }
+  .sessions-top {
+    margin-bottom: 16px;
+  }
 
-          .week-row,
-          .heatmap {
-            width: 100%;
-            grid-template-columns: repeat(7, minmax(0, 1fr));
-            gap: 7px;
-          }
+  .hint {
+    text-align: left;
+  }
 
-          .week-row span {
-            font-size: 13px;
-          }
+  .card-top h2,
+  .sessions-top h2,
+  .journey-card h2 {
+    font-size: 2.25rem;
+  }
 
-          .heat-cell {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            min-height: 0;
-            border-radius: 12px;
-            padding: 6px;
-          }
+  .journey-card p:last-child {
+    font-size: 1rem;
+  }
 
-          .day-number {
-            font-size: 13px;
-          }
+  .week-row,
+  .heatmap {
+    width: 100%;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 7px;
+  }
 
-          .day-minutes {
-            display: none;
-          }
+  .week-row span {
+    font-size: 13px;
+  }
 
-          .tooltip {
-            display: none;
-          }
+  .heat-cell {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
+    border-radius: 12px;
+    padding: 6px;
+  }
 
-          .legend {
-            justify-content: center;
-            margin-top: 18px;
-          }
+  .day-number {
+    font-size: 13px;
+  }
 
-          .summary {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
+  .day-minutes {
+    display: none;
+  }
 
-        @media (max-width: 420px) {
+  .tooltip {
+    display: none;
+  }
+
+  .legend {
+    justify-content: center;
+    margin-top: 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  .content {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .rhythm-card,
+  .journey-card,
+  .sessions-card {
+    padding: 18px;
+    border-radius: 26px;
+  }
+
+  .week-row,
+  .heatmap {
+    gap: 6px;
+  }
+
+  .heat-cell {
+    border-radius: 11px;
+    padding: 5px;
+  }
+
+  .card-top h2,
+  .sessions-top h2,
+  .journey-card h2 {
+    font-size: 2.05rem;
+  }
+
+  .selected-total {
+    min-width: 62px;
+    padding: 9px 10px;
+  }
+}
           .content {
             padding-left: 14px;
             padding-right: 14px;
