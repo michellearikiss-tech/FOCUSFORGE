@@ -230,7 +230,8 @@ export default function FocusPage() {
     });
 
     if (error) {
-      console.error("Save study session error:", error);
+      console.error(error);
+alert(JSON.stringify(error, null, 2));
       setMessage("Session finished, but it could not be saved.");
       return;
     }
