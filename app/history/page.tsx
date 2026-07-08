@@ -24,6 +24,10 @@ export default function HistoryPage() {
   const [background, setBackground] = useState("/library-study.png");
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(getToday());
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   useEffect(() => {
     setBackground(getPageBackground());
@@ -62,7 +66,7 @@ export default function HistoryPage() {
   );
 
   const groupedSessions = groupSessionsByDate(sessions);
-  const monthlyDays = getCurrentMonthDays();
+  const monthlyDays = getMonthDays(currentMonth);
   const monthlyStats = getMonthlyStats(sessions);
   const selectedSessions = groupedSessions[selectedDate] || [];
   const selectedMinutes = selectedSessions.reduce(
@@ -100,12 +104,44 @@ export default function HistoryPage() {
             <div className="card-top">
               <div>
                 <p className="small-caps">Monthly Rhythm</p>
-                <h2>
-                  {new Date().toLocaleString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </h2>
+                <div className="month-header">
+  <button
+    className="month-btn"
+    onClick={() =>
+      setCurrentMonth(
+        new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() - 1,
+          1
+        )
+      )
+    }
+  >
+    ←
+  </button>
+
+  <h2>
+    {currentMonth.toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    })}
+  </h2>
+
+  <button
+    className="month-btn"
+    onClick={() =>
+      setCurrentMonth(
+        new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() + 1,
+          1
+        )
+      )
+    }
+  >
+    →
+  </button>
+</div>
               </div>
 
               <p className="hint">Tap a day to read that page.</p>
@@ -355,6 +391,27 @@ export default function HistoryPage() {
           margin-bottom: 18px;
         }
 
+        .month-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.month-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  color: rgba(241,232,218,.92);
+  font-size: 20px;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.month-btn:hover {
+  background: rgba(255,255,255,.12);
+}
         .card-top h2,
         .sessions-top h2,
         .journey-card h2 {
@@ -848,16 +905,16 @@ function getMonthlyStats(sessions: StudySession[]) {
   return statsByDate;
 }
 
-function getCurrentMonthDays() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const lastDay = new Date(year, month + 1, 0).getDate();
+function getMonthDays(month: Date) {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
 
   const days: Date[] = [];
 
   for (let day = 1; day <= lastDay; day++) {
-    days.push(new Date(year, month, day));
+    days.push(new Date(year, monthIndex, day));
   }
 
   return days;

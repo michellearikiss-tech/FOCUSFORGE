@@ -116,11 +116,16 @@ export default function FocusPage() {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
 
-    const { data: sessions } = await supabase
-      .from("study_sessions")
-      .select("duration_minutes")
-      .eq("user_id", currentUserId)
-      .gte("completed_at", start.toISOString());
+    const { data: sessions, error } = await supabase
+  .from("study_sessions")
+  .select("*")
+  .eq("user_id", currentUserId)
+  .gte("completed_at", start.toISOString());
+
+console.log("USER ID:", currentUserId);
+console.log("TODAY:", start.toISOString());
+console.log("SESSIONS:", sessions);
+console.log("ERROR:", error);
 
     const { data: completedTasks } = await supabase
       .from("tasks")
