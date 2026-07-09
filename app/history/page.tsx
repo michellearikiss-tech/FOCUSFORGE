@@ -23,7 +23,9 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [background, setBackground] = useState("/library-study.png");
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(getToday());
+  const [selectedDate, setSelectedDate] = useState(
+    formatDate(new Date())
+  );
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -65,9 +67,27 @@ export default function HistoryPage() {
     0
   );
 
-  const groupedSessions = groupSessionsByDate(sessions);
+  const groupedSessions = groupSessionsByDate(
+    sessions.filter((session) => {
+      const date = new Date(session.completed_at);
+  
+      return (
+        date.getFullYear() === currentMonth.getFullYear() &&
+        date.getMonth() === currentMonth.getMonth()
+      );
+    })
+  );
   const monthlyDays = getMonthDays(currentMonth);
-  const monthlyStats = getMonthlyStats(sessions);
+  const monthlyStats = getMonthlyStats(
+    sessions.filter((session) => {
+      const date = new Date(session.completed_at);
+  
+      return (
+        date.getFullYear() === currentMonth.getFullYear() &&
+        date.getMonth() === currentMonth.getMonth()
+      );
+    })
+  );
   const selectedSessions = groupedSessions[selectedDate] || [];
   const selectedMinutes = selectedSessions.reduce(
     (sum, session) => sum + session.duration_minutes,
@@ -107,17 +127,18 @@ export default function HistoryPage() {
                 <div className="month-header">
   <button
     className="month-btn"
-    onClick={() =>
-      setCurrentMonth(
-        new Date(
-          currentMonth.getFullYear(),
-          currentMonth.getMonth() - 1,
-          1
-        )
-      )
-    }
+    onClick={() => {
+      const next = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() - 1,
+        1
+      );
+
+      setCurrentMonth(next);
+      setSelectedDate(formatDate(next));
+    }}
   >
-    ←
+    ❮
   </button>
 
   <h2>
@@ -129,17 +150,25 @@ export default function HistoryPage() {
 
   <button
     className="month-btn"
-    onClick={() =>
-      setCurrentMonth(
-        new Date(
-          currentMonth.getFullYear(),
-          currentMonth.getMonth() + 1,
-          1
-        )
-      )
-    }
+    onClick={() => {
+      const next = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1,
+        1
+      );
+
+      setCurrentMonth(next);
+
+const firstDay = new Date(
+  next.getFullYear(),
+  next.getMonth(),
+  1
+);
+
+setSelectedDate(formatDate(firstDay));
+    }}
   >
-    →
+    ❯
   </button>
 </div>
               </div>
@@ -200,9 +229,10 @@ export default function HistoryPage() {
             <div className="legend">
               <span>Less</span>
               <i style={getHeatmapColor(0)} />
-              <i style={getHeatmapColor(30)} />
-              <i style={getHeatmapColor(90)} />
-              <i style={getHeatmapColor(120)} />
+<i style={getHeatmapColor(25)} />
+<i style={getHeatmapColor(60)} />
+<i style={getHeatmapColor(110)} />
+<i style={getHeatmapColor(180)} />
               <span>More</span>
             </div>
           </section>
@@ -876,7 +906,7 @@ function groupSessionsByDate(sessions: StudySession[]) {
   const groups: Record<string, StudySession[]> = {};
 
   sessions.forEach((session) => {
-    const date = new Date(session.completed_at).toISOString().split("T")[0];
+    const date = formatDate(new Date(session.completed_at));
 
     if (!groups[date]) {
       groups[date] = [];
@@ -889,17 +919,26 @@ function groupSessionsByDate(sessions: StudySession[]) {
 }
 
 function getMonthlyStats(sessions: StudySession[]) {
-  const statsByDate: Record<string, { minutes: number; sessions: number }> = {};
+  const statsByDate: Record<
+    string,
+    {
+      minutes: number;
+      sessions: number;
+    }
+  > = {};
 
   sessions.forEach((session) => {
-    const date = new Date(session.completed_at).toISOString().split("T")[0];
+    const key = formatDate(new Date(session.completed_at));
 
-    if (!statsByDate[date]) {
-      statsByDate[date] = { minutes: 0, sessions: 0 };
+    if (!statsByDate[key]) {
+      statsByDate[key] = {
+        minutes: 0,
+        sessions: 0,
+      };
     }
 
-    statsByDate[date].minutes += session.duration_minutes;
-    statsByDate[date].sessions += 1;
+    statsByDate[key].minutes += session.duration_minutes;
+    statsByDate[key].sessions += 1;
   });
 
   return statsByDate;
@@ -921,11 +960,15 @@ function getMonthDays(month: Date) {
 }
 
 function getToday() {
-  return new Date().toISOString().split("T")[0];
+  return formatDate(new Date());
 }
 
 function formatDate(date: Date) {
-  return date.toISOString().split("T")[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatShortDate(date: Date) {
@@ -938,11 +981,11 @@ function formatShortDate(date: Date) {
 function formatDateLabel(dateString: string) {
   const today = new Date();
   const date = new Date(dateString + "T00:00:00");
-  const todayString = today.toISOString().split("T")[0];
+  const todayString = formatDate(today);
 
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  const yesterdayString = yesterday.toISOString().split("T")[0];
+  const yesterdayString = formatDate(yesterday);
 
   if (dateString === todayString) return "Today";
   if (dateString === yesterdayString) return "Yesterday";
@@ -985,29 +1028,41 @@ function getSceneIcon(scene?: string | null) {
 }
 
 function getHeatmapColor(minutes: number) {
-  if (minutes >= 120) {
+  // No activity
+  if (minutes === 0) {
     return {
-      background: "rgba(151, 103, 55, 0.82)",
-      border: "1px solid rgba(218, 174, 108, 0.32)",
+      background: "rgba(255,255,255,0.045)",
+      border: "1px solid rgba(241,232,218,0.08)",
     };
   }
 
-  if (minutes >= 90) {
+  // Light (1–44 min)
+  if (minutes < 45) {
     return {
-      background: "rgba(213, 169, 102, 0.78)",
-      border: "1px solid rgba(241, 213, 166, 0.34)",
+      background: "rgba(241,232,218,0.68)",
+      border: "1px solid rgba(241,232,218,0.30)",
     };
   }
 
-  if (minutes > 0) {
+  // Medium (45–89 min)
+  if (minutes < 90) {
     return {
-      background: "rgba(241, 232, 218, 0.68)",
-      border: "1px solid rgba(241, 232, 218, 0.3)",
+      background: "rgba(213,169,102,0.72)",
+      border: "1px solid rgba(233,198,143,0.35)",
     };
   }
 
+  // Heavy (90–149 min)
+  if (minutes < 150) {
+    return {
+      background: "rgba(151,103,55,0.82)",
+      border: "1px solid rgba(218,174,108,0.32)",
+    };
+  }
+
+  // Deep Focus (150+ min)
   return {
-    background: "rgba(255,255,255,0.045)",
-    border: "1px solid rgba(241,232,218,0.08)",
+    background: "rgba(92,58,30,0.92)",
+    border: "1px solid rgba(235,198,143,0.40)",
   };
 }
